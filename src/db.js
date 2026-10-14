@@ -57,6 +57,7 @@ export function openDb(file) {
   addColumn(db, 'forms', 'categories', "TEXT NOT NULL DEFAULT '[]'");
   addColumn(db, 'forms', 'show_questions', 'INTEGER NOT NULL DEFAULT 0');
   addColumn(db, 'questions', 'scores', "TEXT NOT NULL DEFAULT '[]'");
+  addColumn(db, 'forms', 'result_title', "TEXT NOT NULL DEFAULT ''");
   return db;
 }
 

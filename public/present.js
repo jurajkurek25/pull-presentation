@@ -41,7 +41,7 @@ async function init() {
 function apply({ form, questions, stats }) {
   document.title = form.title;
   $('title').textContent = form.title;
-  const sig = JSON.stringify([questions, form.mode, form.categories, form.showQuestions]);
+  const sig = JSON.stringify([questions, form.mode, form.categories, form.showQuestions, form.resultTitle]);
   if (sig !== questionsSig) {
     questionsSig = sig;
     build(form, questions);
@@ -71,11 +71,11 @@ function fromTemplate(id) {
 }
 
 // Scored test: one pie of respondents' results (+ "Nerozhodne" for ties), optionally followed by the questions.
-function resultQuestion(categories) {
+function resultQuestion(categories, title) {
   return {
     id: 'result',
     type: 'single',
-    text: 'Výsledky',
+    text: title || 'Výsledky',
     options: [...categories, 'Nerozhodne'],
     colors: [...categories.map((_, i) => COLORS[i % COLORS.length]), TIE_COLOR],
     tieIndex: categories.length,
@@ -90,7 +90,7 @@ function build(form, questions) {
   container.replaceChildren();
   slides = [{ el: fromTemplate('tpl-intro'), question: null }];
   const scored = form.mode === 'scored';
-  const shown = [...(scored ? [resultQuestion(form.categories)] : []), ...(!scored || form.showQuestions ? questions : [])];
+  const shown = [...(scored ? [resultQuestion(form.categories, form.resultTitle)] : []), ...(!scored || form.showQuestions ? questions : [])];
   for (const q of shown) {
     const el = fromTemplate(q.type === 'text' ? 'tpl-text' : 'tpl-chart');
     el.querySelector('.q-text').textContent = q.text;

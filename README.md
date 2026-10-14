@@ -61,7 +61,8 @@ respondentov vyšlo ako introvert a koľko ako extrovert.
    výseku **Nerozhodne** (ten sa zobrazí, len keď nie je prázdny).
 5. Po odovzdaní respondent na mobile uvidí „Tvoj výsledok: …“ (pri rovnosti „Si na pomedzí: … / …“).
 
-V prezentácii je QR slajd a slajd **Výsledky** s koláčom. Ak zaškrtneš **zobraziť aj grafy
+V prezentácii je QR slajd a slajd s koláčom. Jeho nadpis nastavíš v poli **Nadpis slajdu s výsledkami**
+(prázdne = „Výsledky“). Ak zaškrtneš **zobraziť aj grafy
 jednotlivých otázok**, za koláčom nasledujú aj slajdy otázok. Aj tento koláč sa hýbe počas
 vypĺňania (svetlá = rozpracovaní, plná = odovzdaní).
 

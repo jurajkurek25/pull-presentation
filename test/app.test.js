@@ -168,13 +168,14 @@ test('vyhodnocovací test: každý respondent dostane výsledok, plátno ukáže
 
     assert.equal((await put({ mode: 'scored', categories: ['Introvert'], questions })).status, 400);
     assert.equal((await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], questions: [{ ...questions[0], scores: [[1, 0]] }] })).status, 400);
-    const saved = await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], showQuestions: true, questions });
+    const saved = await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], showQuestions: true, resultTitle: ' Kto sme? ', questions });
     assert.equal(saved.status, 200, JSON.stringify(saved.body));
     await call('PUT', `/api/admin/forms/${created.id}/status`, { status: 'open' });
 
     const pres = (await call('GET', '/api/p/typ')).body;
     assert.deepEqual(pres.form.categories, ['Introvert', 'Extrovert']);
     assert.equal(pres.form.showQuestions, true);
+    assert.equal(pres.form.resultTitle, 'Kto sme?');
     assert.equal(pres.questions[0].scores, undefined, 'body sa nesmú posielať verejne');
     const [party, talk, note] = pres.questions;
 

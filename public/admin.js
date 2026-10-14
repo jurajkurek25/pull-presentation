@@ -177,6 +177,8 @@ async function formView(id) {
       <div id="scoredSettings" style="margin-top:14px" ${mode === 'scored' ? '' : 'hidden'}>
         <div class="field"><label for="categories">Možné výsledky (každý na nový riadok, 2–8)</label>
           <textarea id="categories" rows="3" placeholder="Introvert&#10;Extrovert">${esc(categories.join('\n'))}</textarea></div>
+        <div class="field"><label for="resultTitle">Nadpis slajdu s výsledkami</label>
+          <input id="resultTitle" maxlength="200" placeholder="Výsledky" value="${esc(form.result_title)}"></div>
         <label style="font-weight:400;display:flex;gap:8px;align-items:center">
           <input type="checkbox" id="showQuestions" style="width:auto" ${form.show_questions ? 'checked' : ''}>
           V prezentácii za koláčom výsledkov zobraziť aj grafy jednotlivých otázok</label>
@@ -310,6 +312,7 @@ async function formView(id) {
         mode,
         categories: currentCategories(),
         showQuestions: view.querySelector('#showQuestions').checked,
+        resultTitle: view.querySelector('#resultTitle').value,
         questions: qs.map((q) => {
           const options = effectiveOptions(q);
           const cats = currentCategories();

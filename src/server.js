@@ -100,6 +100,7 @@ export function createApp({ db, publicUrl } = {}) {
     mode: form.mode,
     categories: form.categories,
     showQuestions: form.show_questions,
+    resultTitle: form.result_title,
   });
   // Scores stay on the server so respondents can't see which answer leads where.
   const publicQuestions = (formId) => getQuestions(db, formId).map(({ scores, ...q }) => q);
@@ -251,6 +252,8 @@ export function createApp({ db, publicUrl } = {}) {
     if (!MODES.includes(mode)) fail(400, 'Neplatný režim.');
     const categories = mode === 'scored' ? validateCategories(req.body.categories ?? form.categories) : [];
     const questions = validateQuestions(req.body.questions, categories);
+    const resultTitle = String(req.body.resultTitle ?? form.result_title).trim();
+    if (resultTitle.length > 200) fail(400, 'Nadpis výsledkov môže mať max. 200 znakov.');
     const other = formBySlug(slug);
     if (other && other.id !== form.id) fail(409, 'Toto slovo v adrese už je obsadené.');
 
@@ -261,12 +264,15 @@ export function createApp({ db, publicUrl } = {}) {
       fail(409, 'Dotazník už má odpovede. Otázky môžeš meniť až po vymazaní odpovedí.');
     }
     db.transaction(() => {
-      db.prepare('UPDATE forms SET title = ?, slug = ?, mode = ?, categories = ?, show_questions = ? WHERE id = ?').run(
+      db.prepare(
+        'UPDATE forms SET title = ?, slug = ?, mode = ?, categories = ?, show_questions = ?, result_title = ? WHERE id = ?'
+      ).run(
         title,
         slug,
         mode,
         JSON.stringify(categories),
         (req.body.showQuestions ?? form.show_questions) ? 1 : 0,
+        resultTitle,
         form.id
       );
       if (structure(existing) === structure(questions)) {
