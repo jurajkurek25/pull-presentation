@@ -2,6 +2,14 @@ const view = document.getElementById('view');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const STATUS_LABELS = { draft: 'Koncept', open: 'Otvorený', closed: 'Uzavretý' };
 const TYPE_LABELS = { single: 'Jedna možnosť', multi: 'Viac možností', scale: 'Škála 1–5', text: 'Voľný text' };
+const SCALE_OPTIONS = ['1', '2', '3', '4', '5'];
+
+// Options as the server will store them (blank lines dropped, scale fixed).
+function effectiveOptions(q) {
+  if (q.type === 'scale') return SCALE_OPTIONS;
+  if (q.type === 'text') return [];
+  return q.options.map((o) => o.trim()).filter(Boolean);
+}
 
 async function api(method, url, body) {
   const res = await fetch(url, {
@@ -77,7 +85,7 @@ async function formsView() {
           ${forms
             .map(
               (f) => `<tr>
-                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>
+                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>${f.mode === 'scored' ? ' <span class="badge">Test</span>' : ''}
                   <div class="muted small">${esc(f.created_by_name ?? '')}</div></td>
                 <td><a href="/${esc(f.slug)}" target="_blank">/${esc(f.slug)}</a></td>
                 <td><span class="badge ${f.status}">${STATUS_LABELS[f.status]}</span></td>
@@ -120,7 +128,15 @@ async function formView(id) {
   const hasResponses = counts.submitted + counts.inProgress > 0;
   const presentUrl = `${location.origin}/${form.slug}`;
   const fillUrl = `${presentUrl}/vyplnit`;
-  let qs = questions.map(({ type, text, options }) => ({ type, text, options }));
+  let mode = form.mode;
+  let categories = form.categories;
+  // Points are kept per option label, so editing/reordering options keeps their points.
+  let qs = questions.map(({ type, text, options, scores }) => ({
+    type,
+    text,
+    options,
+    points: Object.fromEntries(options.map((o, i) => [o, scores[i] ?? []])),
+  }));
 
   view.innerHTML = `
     <p><a href="/admin" data-link>← Dotazníky</a></p>
@@ -148,6 +164,26 @@ async function formView(id) {
       </div>
       <p class="muted small" style="margin:8px 0 0">Koncept: respondenti vidia „ešte nie je otvorený“. Otvorený: prijíma odpovede. Uzavretý: odpovede sa už neprijímajú.</p>
     </div>
+    <div class="card">
+      <div class="row">
+        <div><b>Režim:</b></div>
+        <div class="seg" id="mode">
+          <button data-mode="survey" aria-pressed="${mode === 'survey'}">Prieskum</button>
+          <button data-mode="scored" aria-pressed="${mode === 'scored'}">Vyhodnocovací test</button>
+        </div>
+      </div>
+      <p class="muted small" style="margin:8px 0 0">Prieskum: v prezentácii je graf pre každú otázku.
+        Test: odpovede dávajú body výsledkom, každý respondent dostane výsledok s najviac bodmi a v prezentácii je jeden koláč výsledkov.</p>
+      <div id="scoredSettings" style="margin-top:14px" ${mode === 'scored' ? '' : 'hidden'}>
+        <div class="field"><label for="categories">Možné výsledky (každý na nový riadok, 2–8)</label>
+          <textarea id="categories" rows="3" placeholder="Introvert&#10;Extrovert">${esc(categories.join('\n'))}</textarea></div>
+        <label style="font-weight:400;display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="showQuestions" style="width:auto" ${form.show_questions ? 'checked' : ''}>
+          V prezentácii za koláčom výsledkov zobraziť aj grafy jednotlivých otázok</label>
+        <p class="muted small" style="margin:8px 0 0">Body pri otázkach môžeš meniť aj keď už sú odpovede – výsledky sa prepočítajú.
+          Pri rovnakom počte bodov sa respondent zaráta do „Nerozhodne“.</p>
+      </div>
+    </div>
     <h2>Otázky</h2>
     ${hasResponses ? '<p class="card muted">Dotazník už má odpovede, preto otázky nemožno meniť. Ak ich chceš upraviť, najprv vymaž odpovede.</p>' : ''}
     <div id="questions"></div>
@@ -163,6 +199,26 @@ async function formView(id) {
 
   const err = view.querySelector('#err');
   const list = view.querySelector('#questions');
+
+  const currentCategories = () => categories.map((c) => c.trim()).filter(Boolean);
+
+  function scoreTable(q) {
+    const cats = currentCategories();
+    const opts = effectiveOptions(q);
+    if (mode !== 'scored' || !opts.length) return '';
+    if (cats.length < 2) return '<p class="muted small">Najprv vyplň aspoň 2 možné výsledky vyššie.</p>';
+    return `<label style="margin-top:12px">Body za odpoveď</label>
+      <table class="scores"><thead><tr><th>Odpoveď</th>${cats.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>
+      ${opts
+        .map(
+          (o, oi) => `<tr><td>${esc(o)}</td>${cats
+            .map((_, ci) => `<td><input type="number" step="1" min="-100" max="100" data-score="${oi},${ci}" value="${q.points[o]?.[ci] ?? 0}"></td>`)
+            .join('')}</tr>`
+        )
+        .join('')}</tbody></table>`;
+  }
+  const refreshScores = () =>
+    list.querySelectorAll('.q-edit').forEach((el) => (el.querySelector('.scores-wrap').innerHTML = scoreTable(qs[el.dataset.i])));
 
   function renderQuestions() {
     list.innerHTML = qs
@@ -187,6 +243,7 @@ async function formView(id) {
                 ? '<p class="muted small">Respondent vyberie hodnotu 1 až 5.</p>'
                 : '<p class="muted small">Krátka textová odpoveď (max. 500 znakov), na plátne sa zobrazí ako zoznam.</p>'
           }
+          <div class="scores-wrap">${scoreTable(q)}</div>
         </div>`
       )
       .join('');
@@ -194,10 +251,20 @@ async function formView(id) {
   renderQuestions();
 
   list.addEventListener('input', (e) => {
-    const i = Number(e.target.closest('[data-i]').dataset.i);
+    const el = e.target.closest('[data-i]');
+    const q = qs[Number(el.dataset.i)];
     const f = e.target.dataset.f;
-    if (f === 'text') qs[i].text = e.target.value;
-    if (f === 'options') qs[i].options = e.target.value.split('\n');
+    if (f === 'text') q.text = e.target.value;
+    if (f === 'options') {
+      q.options = e.target.value.split('\n');
+      el.querySelector('.scores-wrap').innerHTML = scoreTable(q);
+    }
+    if (e.target.dataset.score) {
+      const [oi, ci] = e.target.dataset.score.split(',').map(Number);
+      const label = effectiveOptions(q)[oi];
+      const row = (q.points[label] ??= []);
+      row[ci] = Math.max(-100, Math.min(100, parseInt(e.target.value, 10) || 0));
+    }
   });
   list.addEventListener('change', (e) => {
     if (e.target.dataset.f !== 'type') return;
@@ -215,8 +282,20 @@ async function formView(id) {
     if (a === 'down') [qs[i + 1], qs[i]] = [qs[i], qs[i + 1]];
     renderQuestions();
   });
+  view.querySelector('#mode').addEventListener('click', (e) => {
+    if (!e.target.dataset.mode) return;
+    mode = e.target.dataset.mode;
+    view.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === mode));
+    view.querySelector('#scoredSettings').hidden = mode !== 'scored';
+    refreshScores();
+  });
+  view.querySelector('#categories').addEventListener('input', (e) => {
+    categories = e.target.value.split('\n');
+    refreshScores();
+  });
+
   view.querySelector('#add').addEventListener('click', () => {
-    qs.push({ type: 'single', text: '', options: ['', ''] });
+    qs.push({ type: 'single', text: '', options: ['', ''], points: {} });
     renderQuestions();
     list.lastElementChild.querySelector('[data-f="text"]').focus();
   });
@@ -228,7 +307,15 @@ async function formView(id) {
       await api('PUT', `/api/admin/forms/${id}`, {
         title: view.querySelector('#title').value,
         slug,
-        questions: qs.map((q) => ({ ...q, options: q.options.map((o) => o.trim()).filter(Boolean) })),
+        mode,
+        categories: currentCategories(),
+        showQuestions: view.querySelector('#showQuestions').checked,
+        questions: qs.map((q) => {
+          const options = effectiveOptions(q);
+          const cats = currentCategories();
+          const scores = mode === 'scored' ? options.map((o) => cats.map((_, ci) => q.points[o]?.[ci] ?? 0)) : [];
+          return { type: q.type, text: q.text, options, scores };
+        }),
       });
       if (slug !== form.slug) return formView(id);
       view.querySelector('#saved').textContent = 'Uložené ✓';

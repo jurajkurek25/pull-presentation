@@ -152,3 +152,60 @@ test('celý tok: admin vytvorí dotazník, respondenti odpovedajú, prezentácia
     server.close();
   }
 });
+
+test('vyhodnocovací test: každý respondent dostane výsledok, plátno ukáže rozdelenie', async () => {
+  const { server, base, call } = await setup();
+  try {
+    await call('POST', '/api/auth/login', { email: 'admin@example.com', password: 'tajneheslo' });
+    const { body: created } = await call('POST', '/api/admin/forms', { title: 'Intro/Extro', slug: 'typ' });
+    const questions = [
+      // option 0 -> introvert, option 1 -> extrovert
+      { type: 'single', text: 'Večierok?', options: ['Doma s knihou', 'Na párty'], scores: [[2, 0], [0, 2]] },
+      { type: 'scale', text: 'Rád rozprávam s cudzími', scores: [[2, 0], [1, 0], [0, 0], [0, 1], [0, 2]] },
+      { type: 'text', text: 'Poznámka' },
+    ];
+    const put = (body) => call('PUT', `/api/admin/forms/${created.id}`, { title: 'Intro/Extro', slug: 'typ', ...body });
+
+    assert.equal((await put({ mode: 'scored', categories: ['Introvert'], questions })).status, 400);
+    assert.equal((await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], questions: [{ ...questions[0], scores: [[1, 0]] }] })).status, 400);
+    const saved = await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], showQuestions: true, questions });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+    await call('PUT', `/api/admin/forms/${created.id}/status`, { status: 'open' });
+
+    const pres = (await call('GET', '/api/p/typ')).body;
+    assert.deepEqual(pres.form.categories, ['Introvert', 'Extrovert']);
+    assert.equal(pres.form.showQuestions, true);
+    assert.equal(pres.questions[0].scores, undefined, 'body sa nesmú posielať verejne');
+    const [party, talk, note] = pres.questions;
+
+    const answer = (token, questionId, value) => call('PUT', '/api/f/typ/answers', { token, questionId, value });
+    const submit = (token) => call('POST', '/api/f/typ/submit', { token });
+    const [A, B, C, D] = ['a', 'b', 'c', 'd'].map((x) => x.repeat(32));
+
+    await answer(A, party.id, 0); await answer(A, talk.id, 1); await submit(A); // 3:0 introvert
+    await answer(B, party.id, 1); await answer(B, talk.id, 4); await submit(B); // 0:4 extrovert
+    await answer(C, party.id, 0); await answer(C, talk.id, 4);                   // 2:2 tie, pending
+    await answer(D, note.id, 'len text');                                         // nothing scored -> not counted
+
+    let stats = (await call('GET', '/api/p/typ')).body.stats;
+    assert.deepEqual(stats.result, { final: [1, 1, 0], pending: [0, 0, 1] });
+
+    // C changes their mind: the result moves while pending, then becomes final.
+    await answer(C, talk.id, 0); // 4:0
+    await submit(C);
+    stats = (await call('GET', '/api/p/typ')).body.stats;
+    assert.deepEqual(stats.result, { final: [2, 1, 0], pending: [0, 0, 0] });
+
+    assert.deepEqual((await call('GET', `/api/f/typ?token=${A}`)).body.state.result, ['Introvert']);
+    assert.deepEqual((await call('GET', `/api/f/typ?token=${B}`)).body.state.result, ['Extrovert']);
+
+    // Scores can be changed even after responses exist; results are recomputed.
+    const flipped = questions.map((q) => ({ ...q, scores: q.scores?.map(([i, e]) => [e, i]) }));
+    assert.equal((await put({ mode: 'scored', categories: ['Introvert', 'Extrovert'], questions: flipped })).status, 200);
+    stats = (await call('GET', '/api/p/typ')).body.stats;
+    assert.deepEqual(stats.result.final, [1, 2, 0]);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});

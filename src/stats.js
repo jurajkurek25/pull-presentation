@@ -28,16 +28,34 @@ export function normalizeValue(question, value) {
   throw new Error('Neznámy typ otázky');
 }
 
+// Sums a respondent's points per category. Returns null when none of their answers is scored,
+// otherwise the indexes of the winning categories (more than one = tie).
+export function classify(questions, categories, answers) {
+  const totals = categories.map(() => 0);
+  let scored = 0;
+  for (const q of questions) {
+    if (!q.scores.length || answers[q.id] === undefined) continue;
+    scored++;
+    for (const option of [answers[q.id]].flat()) {
+      q.scores[option]?.forEach((points, c) => (totals[c] += points));
+    }
+  }
+  if (!scored) return null;
+  const max = Math.max(...totals);
+  return totals.flatMap((t, c) => (t === max ? [c] : []));
+}
+
 // Aggregates answers per question, split into submitted ("final") and still-editable ("pending").
-export function computeStats(db, formId) {
-  const questions = getQuestions(db, formId);
+// For scored forms also tallies each respondent's result; the extra last slot counts ties.
+export function computeStats(db, form) {
+  const questions = getQuestions(db, form.id);
   const rows = db
     .prepare(
-      `SELECT a.question_id AS qid, a.value, r.submitted_at IS NOT NULL AS final
+      `SELECT a.response_id AS rid, a.question_id AS qid, a.value, r.submitted_at IS NOT NULL AS final
        FROM answers a JOIN responses r ON r.id = a.response_id
        WHERE r.form_id = ? ORDER BY a.updated_at DESC, a.rowid DESC`
     )
-    .all(formId);
+    .all(form.id);
 
   const byQuestion = new Map(
     questions.map((q) => [
@@ -47,11 +65,14 @@ export function computeStats(db, formId) {
         : { id: q.id, final: q.options.map(() => 0), pending: q.options.map(() => 0), answered: 0 },
     ])
   );
+  const byResponse = new Map(); // response id -> { final, answers }
 
   for (const row of rows) {
     const s = byQuestion.get(row.qid);
     if (!s) continue;
     const value = JSON.parse(row.value);
+    if (!byResponse.has(row.rid)) byResponse.set(row.rid, { final: !!row.final, answers: {} });
+    byResponse.get(row.rid).answers[row.qid] = value;
     if (s.items) {
       s.total++;
       if (s.items.length < MAX_TEXT_ITEMS) s.items.push({ text: value, final: !!row.final });
@@ -64,5 +85,17 @@ export function computeStats(db, formId) {
     }
   }
 
-  return { counts: responseCounts(db, formId), questions: [...byQuestion.values()] };
+  const stats = { counts: responseCounts(db, form.id), questions: [...byQuestion.values()] };
+  if (form.mode === 'scored') {
+    const zeros = () => [...form.categories.map(() => 0), 0];
+    const result = { final: zeros(), pending: zeros() };
+    for (const { final, answers } of byResponse.values()) {
+      const winners = classify(questions, form.categories, answers);
+      if (!winners) continue;
+      const slot = winners.length === 1 ? winners[0] : form.categories.length;
+      (final ? result.final : result.pending)[slot]++;
+    }
+    stats.result = result;
+  }
+  return stats;
 }

@@ -35,6 +35,17 @@ async function load() {
   locked = data.state.submitted || data.form.status !== 'open';
   if (data.state.submitted) {
     notice.innerHTML = '<h2>Ďakujeme!</h2><p class="muted">Tvoje odpovede boli odovzdané. Výsledky sleduj na plátne.</p>';
+    const result = data.state.result;
+    if (result?.length) {
+      const p = document.createElement('p');
+      p.className = 'result';
+      p.append(result.length === 1 ? 'Tvoj výsledok: ' : 'Si na pomedzí: ');
+      result.forEach((name, i) => {
+        if (i) p.append(' / ');
+        p.append(Object.assign(document.createElement('b'), { textContent: name }));
+      });
+      notice.querySelector('h2').after(p);
+    }
     notice.hidden = false;
   } else if (data.form.status === 'draft') {
     notice.innerHTML = '<h2>Dotazník ešte nie je otvorený</h2><p class="muted">Stránka sa sama obnoví, keď sa otvorí.</p>';

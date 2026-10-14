@@ -48,6 +48,26 @@ zobrazí sa výzva zavrieť ju cez Ctrl+W.
 - Respondent je rozpoznaný podľa náhodného identifikátora v prehliadači (localStorage).
 - Otázky sa nedajú meniť, keď už dotazník má odpovede (najprv **Vymazať odpovede**).
 
+## Režim „Vyhodnocovací test“
+
+Napr. 15 otázok, či si introvert alebo extrovert. Na plátne je jeden koláč, ktorý ukazuje, koľko percent
+respondentov vyšlo ako introvert a koľko ako extrovert.
+
+1. V editore dotazníka prepni **Režim** na **Vyhodnocovací test**.
+2. Vyplň **Možné výsledky** (2–8, každý na nový riadok), napr. `Introvert` a `Extrovert`.
+3. Pri každej otázke sa zobrazí tabuľka **Body za odpoveď**: pre každú odpoveď zadáš body pre každý
+   výsledok (celé čísla, aj záporné). Pri škále 1–5 zadáš body pre každú hodnotu. Voľný text sa neboduje.
+4. Respondentovi sa body sčítajú a dostane výsledok s najviac bodmi. Pri rovnosti sa zaráta do šedého
+   výseku **Nerozhodne** (ten sa zobrazí, len keď nie je prázdny).
+5. Po odovzdaní respondent na mobile uvidí „Tvoj výsledok: …“ (pri rovnosti „Si na pomedzí: … / …“).
+
+V prezentácii je QR slajd a slajd **Výsledky** s koláčom. Ak zaškrtneš **zobraziť aj grafy
+jednotlivých otázok**, za koláčom nasledujú aj slajdy otázok. Aj tento koláč sa hýbe počas
+vypĺňania (svetlá = rozpracovaní, plná = odovzdaní).
+
+Body, výsledky aj režim môžeš meniť aj keď už sú odpovede – všetko sa prepočíta. Body sa
+respondentom neposielajú, takže v prehliadači nevidia, ktorá odpoveď vedie ku ktorému výsledku.
+
 ## Spustenie lokálne
 
 ```bash

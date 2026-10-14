@@ -52,14 +52,34 @@ export function openDb(file) {
       PRIMARY KEY (response_id, question_id)
     );
   `);
+  // Columns added after the first release (scored "test" mode).
+  addColumn(db, 'forms', 'mode', "TEXT NOT NULL DEFAULT 'survey'");
+  addColumn(db, 'forms', 'categories', "TEXT NOT NULL DEFAULT '[]'");
+  addColumn(db, 'forms', 'show_questions', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn(db, 'questions', 'scores', "TEXT NOT NULL DEFAULT '[]'");
   return db;
+}
+
+function addColumn(db, table, column, definition) {
+  if (!db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+export function getForm(db, where, value) {
+  const form = db.prepare(`SELECT * FROM forms WHERE ${where} = ?`).get(value);
+  if (form) {
+    form.categories = JSON.parse(form.categories);
+    form.show_questions = !!form.show_questions;
+  }
+  return form;
 }
 
 export function getQuestions(db, formId) {
   return db
-    .prepare('SELECT id, type, text, options FROM questions WHERE form_id = ? ORDER BY position')
+    .prepare('SELECT id, type, text, options, scores FROM questions WHERE form_id = ? ORDER BY position')
     .all(formId)
-    .map((q) => ({ ...q, options: JSON.parse(q.options) }));
+    .map((q) => ({ ...q, options: JSON.parse(q.options), scores: JSON.parse(q.scores) }));
 }
 
 export function responseCounts(db, formId) {

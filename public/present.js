@@ -9,6 +9,7 @@ const KEYS = {
   close: ['Escape', '.', 'b', 'B'],
   fullscreen: ['F5'],
 };
+const TIE_COLOR = '#9ca3af';
 const COLORS = ['#2563eb', '#f97316', '#16a34a', '#dc2626', '#9333ea', '#0891b2', '#ca8a04', '#db2777', '#4b5563', '#65a30d', '#7c3aed', '#0d9488'];
 
 const slug = location.pathname.split('/')[1];
@@ -40,17 +41,17 @@ async function init() {
 function apply({ form, questions, stats }) {
   document.title = form.title;
   $('title').textContent = form.title;
-  const sig = JSON.stringify(questions);
+  const sig = JSON.stringify([questions, form.mode, form.categories, form.showQuestions]);
   if (sig !== questionsSig) {
     questionsSig = sig;
-    build(questions);
+    build(form, questions);
   }
   $('submitted').textContent = stats.counts.submitted;
   $('inProgress').textContent = stats.counts.inProgress;
   renderStatus(form.status, stats.counts);
   const byId = new Map(stats.questions.map((s) => [s.id, s]));
   for (const slide of slides) {
-    if (slide.question) updateSlide(slide, byId.get(slide.question.id));
+    if (slide.question) updateSlide(slide, slide.question.id === 'result' ? stats.result : byId.get(slide.question.id));
   }
 }
 
@@ -69,12 +70,28 @@ function fromTemplate(id) {
   return $(id).content.firstElementChild.cloneNode(true);
 }
 
-function build(questions) {
+// Scored test: one pie of respondents' results (+ "Nerozhodne" for ties), optionally followed by the questions.
+function resultQuestion(categories) {
+  return {
+    id: 'result',
+    type: 'single',
+    text: 'Výsledky',
+    options: [...categories, 'Nerozhodne'],
+    colors: [...categories.map((_, i) => COLORS[i % COLORS.length]), TIE_COLOR],
+    tieIndex: categories.length,
+  };
+}
+
+const colorOf = (question, i) => question.colors?.[i] ?? COLORS[i % COLORS.length];
+
+function build(form, questions) {
   for (const s of slides) s.chart?.destroy();
   const container = $('slides');
   container.replaceChildren();
   slides = [{ el: fromTemplate('tpl-intro'), question: null }];
-  for (const q of questions) {
+  const scored = form.mode === 'scored';
+  const shown = [...(scored ? [resultQuestion(form.categories)] : []), ...(!scored || form.showQuestions ? questions : [])];
+  for (const q of shown) {
     const el = fromTemplate(q.type === 'text' ? 'tpl-text' : 'tpl-chart');
     el.querySelector('.q-text').textContent = q.text;
     slides.push({ el, question: q, chart: null, stats: null });
@@ -108,7 +125,7 @@ function createChart(slide) {
   const { question, stats } = slide;
   const colors = [];
   question.options.forEach((_, i) => {
-    const c = COLORS[i % COLORS.length];
+    const c = colorOf(question, i);
     colors.push(c, c + '59');
   });
   return new Chart(slide.el.querySelector('canvas'), {
@@ -142,7 +159,7 @@ function updateSlide(slide, stats) {
     legend.replaceChildren(
       ...slide.question.options.map((label, i) => {
         const li = document.createElement('li');
-        const color = COLORS[i % COLORS.length];
+        const color = colorOf(slide.question, i);
         li.innerHTML = `<span class="swatch"></span><span class="label"></span><span class="num"></span>
           <span class="bar-track"><span class="f"></span><span class="p"></span></span>`;
         li.querySelector('.swatch').style.background = color;
@@ -156,6 +173,7 @@ function updateSlide(slide, stats) {
   [...legend.children].forEach((li, i) => {
     const f = stats.final[i], p = stats.pending[i], n = f + p;
     const pct = total ? Math.round((n / total) * 100) : 0;
+    li.hidden = i === slide.question.tieIndex && n === 0;
     li.querySelector('.num').innerHTML = `${pct} %<small>${n}${p ? ` (${p} rozprac.)` : ''}</small>`;
     li.querySelector('.f').style.width = total ? `${(f / total) * 100}%` : '0';
     li.querySelector('.p').style.width = total ? `${(p / total) * 100}%` : '0';
