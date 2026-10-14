@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Forms z Canvy",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Počas prezentácie v Canve otvorí stránku forms.jurajkurek.com, keď sa zobrazí slajd s odkazom na ňu.",
   "background": { "service_worker": "background.js" },
   "content_scripts": [

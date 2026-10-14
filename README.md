@@ -64,8 +64,9 @@ prvky → Označenie**).
 3. Na slajd pridaj **textové pole s adresou**, napr. `forms.jurajkurek.com/typ` (môže byť aj malé).
    Canva adresy odkazov v prezentácii do stránky nevkladá, preto rozšírenie hľadá adresu ako text.
 4. V Canve spusti **Prezentovať** (na celú obrazovku). Keď sa zobrazí slajd s adresou, stránka sa otvorí
-   v novej karte; po jej zavretí sa Chrome vráti do Canvy. Na tom istom slajde sa znova neotvorí,
-   v editore (mimo prezentácie) sa neotvára vôbec.
+   v samostatnom okne cez celú obrazovku (nová karta by Canve zrušila celú obrazovku a tým aj prezentáciu).
+   Keď sa stránka na konci zavrie, zavrie sa jej okno a Canva pokračuje v prezentácii. Na tom istom slajde
+   sa znova neotvorí, v editore (mimo prezentácie) sa neotvára vôbec.
 
 Po aktualizácii rozšírenia (`git pull`) klikni v `chrome://extensions` pri rozšírení na **↻** a obnov
 kartu s Canvou.
