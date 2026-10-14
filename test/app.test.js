@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb } from '../src/db.js';
 import { createUser } from '../src/auth.js';
-import { createApp } from '../src/server.js';
+import { createApp } from '../src/app.js';
 
 async function setup() {
   const db = openDb(':memory:');

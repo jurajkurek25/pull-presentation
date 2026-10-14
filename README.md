@@ -78,6 +78,30 @@ npm start            # http://localhost:3000/admin
 npm test
 ```
 
+## Nasadenie z Windows na CloudPanel (PowerShell)
+
+Predpoklad: v CloudPanel je stránka `forms.jurajkurek.com` typu **Node.js** (Node 20 alebo 22)
+s **App Port 9876** a máš SSH prístup ako používateľ stránky (`jurajkurek-forms`).
+
+V priečinku s týmto repozitárom spusti:
+
+```powershell
+# prvé nasadenie: nahrá aplikáciu, spustí ju a vytvorí admin účet (opýta sa na e-mail, meno, heslo)
+powershell -ExecutionPolicy Bypass -File .\deploy\deploy.ps1 -Server <IP-servera> -CreateAdmin
+
+# každá ďalšia aktualizácia (databáza zostáva)
+powershell -ExecutionPolicy Bypass -File .\deploy\deploy.ps1 -Server <IP-servera>
+```
+
+Skript zabalí aplikáciu, nahrá ju cez `scp` do `/home/jurajkurek-forms/htdocs/forms.jurajkurek.com`,
+na serveri spustí `npm ci`, nainštaluje `pm2` (do domovského priečinka, bez roota), spustí aplikáciu,
+nastaví jej štart po reštarte servera a overí, že odpovedá. Databáza je mimo webového priečinka
+v `/home/jurajkurek-forms/forms-data/app.db` – tú zálohuj.
+
+Voliteľné parametre: `-User`, `-SshPort` (predvolene 22), `-AppPort` (9876), `-AppDir`, `-DataDir`,
+`-PublicUrl`. Úpravy nginx v CloudPanel netreba – aplikácia si vypne buffering živých aktualizácií sama
+(hlavička `X-Accel-Buffering: no`).
+
 ## Nasadenie na VPS (Docker)
 
 ```bash
