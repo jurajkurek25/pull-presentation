@@ -2,9 +2,13 @@
 const slug = location.pathname.split('/')[1];
 const $ = (id) => document.getElementById(id);
 const api = `/api/f/${encodeURIComponent(slug)}`;
+const tokenKey = `pp:${slug}`;
+// TEMPORARY for testing: lets the same browser fill in the form again after submitting.
+// Set back to false to restore the one-response-per-browser protection.
+const ALLOW_REPEAT = true;
 
 function getToken() {
-  const key = `pp:${slug}`;
+  const key = tokenKey;
   try {
     const existing = localStorage.getItem(key);
     if (existing) return existing;
@@ -45,6 +49,16 @@ async function load() {
         p.append(Object.assign(document.createElement('b'), { textContent: name }));
       });
       notice.querySelector('h2').after(p);
+    }
+    if (ALLOW_REPEAT) {
+      const again = Object.assign(document.createElement('button'), { className: 'primary', textContent: 'Vyplniť znova' });
+      again.addEventListener('click', () => {
+        try {
+          localStorage.removeItem(tokenKey);
+        } catch {}
+        location.reload();
+      });
+      notice.append(again);
     }
     notice.hidden = false;
   } else if (data.form.status === 'draft') {
