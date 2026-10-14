@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrácia</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="wrap wide">
+      <a href="/admin" data-link data-nav="forms">Dotazníky</a>
+      <a href="/admin/users" data-link data-nav="users">Používatelia</a>
+      <span class="spacer"></span>
+      <span id="me" class="muted small hide-sm"></span>
+      <button id="logout">Odhlásiť</button>
+    </div>
+  </nav>
+  <main id="view" class="wrap wide"></main>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

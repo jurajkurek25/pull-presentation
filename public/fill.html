@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dotazník</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1 id="title">Načítavam…</h1>
+    <div id="notice" class="card" hidden></div>
+    <div id="questions"></div>
+    <div id="actions" hidden>
+      <p id="saved" class="saved"></p>
+      <button id="submit" class="primary big">Odovzdať</button>
+      <p class="muted small" style="text-align:center">Odpovede sa ukazujú naživo už počas vypĺňania. Po odovzdaní ich nemôžeš meniť.</p>
+    </div>
+  </div>
+  <script src="/static/fill.js"></script>
+</body>
+</html>

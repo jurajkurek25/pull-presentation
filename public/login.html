@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prihlásenie</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap" style="max-width:400px;padding-top:12vh">
+    <form id="login" class="card">
+      <h1>Prihlásenie</h1>
+      <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required autofocus></div>
+      <div class="field"><label for="password">Heslo</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <button class="primary big">Prihlásiť sa</button>
+      <p id="error" class="error" hidden></p>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.value, password: password.value }),
+      });
+      if (res.ok) return location.assign('/admin');
+      error.textContent = (await res.json()).error;
+      error.hidden = false;
+    });
+  </script>
+</body>
+</html>
