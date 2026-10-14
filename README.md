@@ -35,9 +35,10 @@ Prezentér sa v počítači správa ako klávesnica. Stránka reaguje na:
 akú klávesu ktoré tlačidlo posiela (nič sa pritom nevykoná). Ak tvoj prezentér posiela niečo iné,
 uprav pole `KEYS` na začiatku `public/present.js`.
 
-Zatvorenie karty funguje preto, že stránka bola otvorená odkazom v novej karte a pri prepínaní
-slajdov nemení adresu. Ak by ju prehliadač predsa nezavrel (napr. adresa bola napísaná ručne),
-zobrazí sa výzva zavrieť ju cez Ctrl+W.
+Prehliadač dovolí stránke zavrieť jej kartu iba vtedy, keď ju otvoril odkaz **v novej karte**
+(karta nemá inú históriu). Ak sa stránka otvorila v tej istej karte ako Canva, alebo bola adresa
+vložená do už použitej karty, zavrieť ju nejde – vtedy sa stránka vráti na predchádzajúcu stránku
+v karte (napr. späť do Canvy). Výzva „zavri cez Ctrl+W“ sa ukáže, len keď niet kam ísť späť.
 
 ## Ako sa počítajú odpovede
 

@@ -208,8 +208,13 @@ function toast(text) {
 
 function closeTab() {
   window.close();
-  // Only reached if the browser refused to close the tab.
-  setTimeout(() => toast('Prehliadač nedovolil zavrieť kartu – zavri ju cez Ctrl+W.'), 300);
+  // Browsers only let a page close itself when its tab has a single history entry (opened by a
+  // link in a new tab). If it was opened in the same tab as the presentation, or the address was
+  // typed into a used tab, going back is the closest thing: it returns to the previous page.
+  setTimeout(() => {
+    if (history.length > 1) history.back();
+    else toast('Prehliadač nedovolil zavrieť kartu – zavri ju cez Ctrl+W.');
+  }, 300);
 }
 
 function toggleFullscreen() {
