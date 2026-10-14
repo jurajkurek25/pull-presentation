@@ -67,5 +67,8 @@ setInterval(() => {
   if (!url) return;
   openedAt = Date.now();
   console.info('[Forms z Canvy] otváram', url);
-  chrome.runtime.sendMessage({ type: 'open-forms', url });
+  chrome.runtime
+    .sendMessage({ type: 'open-forms', url })
+    .then((r) => console.info('[Forms z Canvy] otvorené', r?.how))
+    .catch((e) => console.warn('[Forms z Canvy] rozšírenie neodpovedá:', e.message));
 }, CHECK_MS);
