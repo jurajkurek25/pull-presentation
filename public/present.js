@@ -213,7 +213,7 @@ function closeTab() {
   // typed into a used tab, going back is the closest thing: it returns to the previous page.
   setTimeout(() => {
     if (history.length > 1) history.back();
-    else toast('Prehliadač nedovolil zavrieť kartu – zavri ju cez Ctrl+W.');
+    else toast(`Prehliadač nedovolil zavrieť kartu – zavri ju cez Ctrl+W. (história: ${history.length}, opener: ${!!window.opener})`);
   }, 300);
 }
 
