@@ -40,6 +40,31 @@ Prehliadač dovolí stránke zavrieť jej kartu iba vtedy, keď ju otvoril odkaz
 vložená do už použitej karty, zavrieť ju nejde – vtedy sa stránka vráti na predchádzajúcu stránku
 v karte (napr. späť do Canvy). Výzva „zavri cez Ctrl+W“ sa ukáže, len keď niet kam ísť späť.
 
+### Otvorenie stránky šípkou na prezentéri (bez myši)
+
+Stránka sa otvorí sama, keď prezentácia príde na slajd, ktorý obsahuje odkaz na
+`forms.jurajkurek.com/...` (odkaz nechaj v slajde ako doteraz).
+
+**PowerPoint (Windows)** – makro `presenter/powerpoint/FormsLink.bas`:
+
+1. Ulož prezentáciu ako **Prezentácia PowerPoint s podporou makier (.pptm)**.
+2. Stlač `Alt+F11`, v menu **File → Import File…** vyber `FormsLink.bas`, zavri editor a ulož.
+3. Pri otvorení súboru klikni na **Povoliť obsah** (makrá).
+4. Spusti prezentáciu. Na slajde s odkazom sa stránka otvorí v samostatnom okne Chromu; keď sa na konci
+   zavrie, zavrie sa celé okno a vpredu je znova PowerPoint. Pri návrate šípkou späť sa znova neotvorí.
+
+Ak sa nič neotvorí: PowerPoint niekedy nenačíta makrá, kým sa nepoužijú. Pomôže pred prezentáciou raz
+otvoriť `Alt+F11`, alebo vložiť na prvý slajd malý ovládací prvok ActiveX (karta **Vývojár → Ovládacie
+prvky → Označenie**).
+
+**Canva (Chrome)** – rozšírenie `presenter/canva-extension`:
+
+1. V Chrome otvor `chrome://extensions`, zapni **Režim pre vývojárov**.
+2. Klikni **Načítať rozbalené** a vyber priečinok `presenter/canva-extension`.
+3. V Canve spusti **Prezentovať** (na celú obrazovku). Keď sa zobrazí slajd s odkazom, stránka sa otvorí
+   v novej karte; po jej zavretí sa Chrome vráti do Canvy. Na tom istom slajde sa znova neotvorí,
+   v editore (mimo prezentácie) sa neotvára vôbec.
+
 ## Ako sa počítajú odpovede
 
 - Každý klik respondenta sa uloží hneď a do ~0,25 s sa prejaví na plátne.

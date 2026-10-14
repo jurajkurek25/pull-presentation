@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Forms z Canvy",
+  "version": "1.0",
+  "description": "Počas prezentácie v Canve otvorí stránku forms.jurajkurek.com, keď sa zobrazí slajd s odkazom na ňu.",
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.canva.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
