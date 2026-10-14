@@ -78,6 +78,29 @@ npm start            # http://localhost:3000/admin
 npm test
 ```
 
+## Nasadenie priamo na serveri (CloudPanel, ako root)
+
+Predpoklad: v CloudPanel je stránka `forms.jurajkurek.com` typu **Node.js** (Node 20 alebo 22)
+s **App Port 9876**. Na serveri ako root:
+
+```bash
+cd /root
+git clone -b claude/keen-archimedes-85qyy9 https://github.com/jurajkurek25/pull-presentation.git
+cd pull-presentation
+bash deploy/server-deploy.sh --create-admin   # prvé nasadenie, spýta sa na admin účet
+```
+
+Aktualizácia:
+
+```bash
+cd /root/pull-presentation && git pull && bash deploy/server-deploy.sh
+```
+
+Aplikácia sa nainštaluje do `/home/jurajkurek-forms/htdocs/forms.jurajkurek.com` a beží pod
+používateľom stránky (nie pod rootom) cez `pm2`. Databáza je v `/home/jurajkurek-forms/forms-data/app.db`.
+Nastavenia sa dajú zmeniť premennými, napr. `APP_PORT=9000 bash deploy/server-deploy.sh`
+(`SITE_USER`, `APP_DIR`, `DATA_DIR`, `APP_PORT`, `PUBLIC_URL`).
+
 ## Nasadenie z Windows na CloudPanel (PowerShell)
 
 Predpoklad: v CloudPanel je stránka `forms.jurajkurek.com` typu **Node.js** (Node 20 alebo 22)
