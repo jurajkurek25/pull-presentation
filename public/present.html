@@ -33,11 +33,21 @@
 
   <template id="tpl-intro">
     <section class="slide intro">
-      <div class="qr big" data-qr></div>
-      <div class="intro-text">
-        <p class="eyebrow">Naskenuj QR kód a odpovedaj</p>
-        <p class="url" data-url></p>
-        <p class="hint">Výsledky sa tu zobrazujú naživo.</p>
+      <div class="step wifi-step" hidden>
+        <div class="qr big" data-wifi-qr></div>
+        <div class="intro-text">
+          <p class="eyebrow">1. Nemáš internet? Pripoj sa na Wi-Fi</p>
+          <p class="url" data-wifi-ssid></p>
+          <p class="hint">Sieť bez hesla</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="qr big" data-qr></div>
+        <div class="intro-text">
+          <p class="eyebrow" data-fill-title>Naskenuj QR kód a odpovedaj</p>
+          <p class="url" data-url></p>
+          <p class="hint">Výsledky sa tu zobrazujú naživo.</p>
+        </div>
       </div>
     </section>
   </template>

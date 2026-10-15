@@ -4,10 +4,10 @@ import { openDb } from '../src/db.js';
 import { createUser } from '../src/auth.js';
 import { createApp } from '../src/app.js';
 
-async function setup() {
+async function setup(options = {}) {
   const db = openDb(':memory:');
   createUser(db, { email: 'admin@example.com', name: 'Admin', password: 'tajneheslo' });
-  const server = createApp({ db, publicUrl: 'https://forms.example.com' }).listen(0);
+  const server = createApp({ db, publicUrl: 'https://forms.example.com', ...options }).listen(0);
   const base = `http://localhost:${server.address().port}`;
   let cookie = '';
   const call = async (method, path, body) => {
@@ -208,5 +208,24 @@ test('vyhodnocovací test: každý respondent dostane výsledok, plátno ukáže
   } finally {
     server.closeAllConnections();
     server.close();
+  }
+});
+
+test('Wi-Fi QR kód sa posiela iba keď je nastavený hotspot', async () => {
+  for (const wifiSsid of [undefined, 'jurajkurek.com']) {
+    const { server, call } = await setup({ wifiSsid });
+    try {
+      await call('POST', '/api/auth/login', { email: 'admin@example.com', password: 'tajneheslo' });
+      await call('POST', '/api/admin/forms', { title: 'X', slug: 'x' });
+      const { wifi } = (await call('GET', '/api/p/x')).body;
+      if (!wifiSsid) assert.equal(wifi, null);
+      else {
+        assert.equal(wifi.ssid, 'jurajkurek.com');
+        assert.match(wifi.qrSvg, /^<svg/);
+      }
+    } finally {
+      server.closeAllConnections();
+      server.close();
+    }
   }
 });

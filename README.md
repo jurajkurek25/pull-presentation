@@ -194,7 +194,9 @@ sudo certbot --nginx -d forms.jurajkurek.com
 ```
 
 Premenné prostredia: `PORT` (predvolene 3000), `DB_FILE` (predvolene `data/app.db`),
-`PUBLIC_URL` (adresa pre QR kód; bez nej sa použije adresa z požiadavky).
+`PUBLIC_URL` (adresa pre QR kód; bez nej sa použije adresa z požiadavky),
+`WIFI_SSID` (názov hotspotu bez hesla, ktorého QR kód „Pripoj sa na Wi-Fi“ je na úvodnom slajde;
+predvolene `jurajkurek.com`, prázdna hodnota `WIFI_SSID=` ho skryje).
 
 ## Technológie
 

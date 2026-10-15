@@ -47,6 +47,12 @@ body {
 .qr svg { display: block; width: 100%; height: 100%; }
 .qr.big { width: min(62vh, 45vw); aspect-ratio: 1; }
 .intro-text { max-width: 40vw; }
+.intro .step { display: flex; align-items: center; gap: 6vw; }
+.intro .step[hidden] { display: none; }
+.intro.has-wifi { gap: 8vw; }
+.intro.has-wifi .step { flex-direction: column; gap: 3vh; text-align: center; }
+.intro.has-wifi .qr.big { width: min(50vh, 34vw); }
+.intro.has-wifi .intro-text { max-width: 38vw; }
 .eyebrow { font-size: 4.4vh; font-weight: 700; margin: 0 0 3vh; }
 .url { font-size: 3.4vh; font-weight: 600; color: #2563eb; word-break: break-all; margin: 0 0 3vh; }
 .hint { font-size: 2.4vh; color: var(--muted); margin: 0; }

@@ -82,7 +82,10 @@ function validateToken(token) {
   return token;
 }
 
-export function createApp({ db, publicUrl } = {}) {
+// Wi-Fi QR payload (understood by iOS and Android cameras) for an open network.
+const wifiQrText = (ssid) => `WIFI:T:nopass;S:${ssid.replace(/([\\;,:"])/g, '\\$1')};;`;
+
+export function createApp({ db, publicUrl, wifiSsid } = {}) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '200kb' }));
@@ -137,7 +140,10 @@ export function createApp({ db, publicUrl } = {}) {
     const form = mustForm(formBySlug(req.params.slug));
     const fillUrl = `${baseUrl(req)}/${form.slug}/vyplnit`;
     const qrSvg = await QRCode.toString(fillUrl, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
-    res.json({ ...livePayload(form.id), fillUrl, qrSvg });
+    const wifi = wifiSsid
+      ? { ssid: wifiSsid, qrSvg: await QRCode.toString(wifiQrText(wifiSsid), { type: 'svg', margin: 1 }) }
+      : null;
+    res.json({ ...livePayload(form.id), fillUrl, qrSvg, wifi });
   });
   app.get('/api/p/:slug/stream', (req, res) => {
     const form = mustForm(formBySlug(req.params.slug));

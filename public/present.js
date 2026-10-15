@@ -17,6 +17,7 @@ const $ = (id) => document.getElementById(id);
 
 let fillUrl = '';
 let qrSvg = '';
+let wifi = null; // { ssid, qrSvg } when the server advertises a hotspot
 let questionsSig = '';
 let slides = []; // { el, question, chart }
 let current = 0;
@@ -27,6 +28,7 @@ async function init() {
   const payload = await res.json();
   fillUrl = payload.fillUrl;
   qrSvg = payload.qrSvg;
+  wifi = payload.wifi;
   apply(payload);
 
   const es = new EventSource(`/api/p/${encodeURIComponent(slug)}/stream`);
@@ -89,6 +91,14 @@ function build(form, questions) {
   const container = $('slides');
   container.replaceChildren();
   slides = [{ el: fromTemplate('tpl-intro'), question: null }];
+  if (wifi) {
+    const intro = slides[0].el;
+    intro.classList.add('has-wifi');
+    intro.querySelector('.wifi-step').hidden = false;
+    intro.querySelector('[data-wifi-qr]').innerHTML = wifi.qrSvg;
+    intro.querySelector('[data-wifi-ssid]').textContent = wifi.ssid;
+    intro.querySelector('[data-fill-title]').textContent = '2. Naskenuj QR kód a odpovedaj';
+  }
   const scored = form.mode === 'scored';
   const shown = [...(scored ? [resultQuestion(form.categories, form.resultTitle)] : []), ...(!scored || form.showQuestions ? questions : [])];
   for (const q of shown) {
