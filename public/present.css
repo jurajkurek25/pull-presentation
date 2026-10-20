@@ -101,3 +101,6 @@ body {
 .keytest h2 { margin-top: 0; }
 .keytest code { background: #f3f4f6; padding: .1em .4em; border-radius: .3em; }
 .legend li[hidden] { display: none; }
+
+/* consistency test (colors-present) */
+.histogram { position: relative; flex: 1; min-height: 0; padding-bottom: 3vh; }

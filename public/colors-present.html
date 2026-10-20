@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test konzistencie</title>
+  <link rel="stylesheet" href="/static/present.css">
+</head>
+<body>
+  <header class="bar">
+    <h1 id="title">Načítavam…</h1>
+    <div class="bar-right">
+      <span class="count"><b id="done">0</b> hotovo</span>
+      <span class="count"><b id="inProgress">0</b> vyberá</span>
+      <span id="status" class="pill"></span>
+    </div>
+  </header>
+
+  <main id="slides"></main>
+
+  <footer class="foot">
+    <span id="conn" class="conn" hidden>Spojenie prerušené – obnovujem…</span>
+    <span id="position"></span>
+  </footer>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <template id="tpl-round">
+    <section class="slide intro">
+      <div class="step wifi-step" hidden>
+        <div class="qr big" data-wifi-qr></div>
+        <div class="intro-text">
+          <p class="eyebrow">Nemáš internet? Pripoj sa na Wi-Fi</p>
+          <p class="url" data-wifi-ssid></p>
+          <p class="hint">Sieť bez hesla</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="qr big" data-qr></div>
+        <div class="intro-text">
+          <p class="eyebrow" data-round-title></p>
+          <p class="url" data-url></p>
+          <p class="hint" data-round-hint></p>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-histogram">
+    <section class="slide question">
+      <h2 class="q-text">Koľko z 9 písmen dostalo v oboch kolách rovnakú farbu?</h2>
+      <div class="histogram"><canvas></canvas></div>
+      <p class="legend-note" data-note></p>
+    </section>
+  </template>
+
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/colors-present.js"></script>
+</body>
+</html>

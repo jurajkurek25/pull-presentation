@@ -101,6 +101,26 @@ vypĺňania (svetlá = rozpracovaní, plná = odovzdaní).
 Body, výsledky aj režim môžeš meniť aj keď už sú odpovede – všetko sa prepočíta. Body sa
 respondentom neposielajú, takže v prehliadači nevidia, ktorá odpoveď vedie ku ktorému výsledku.
 
+## Režim „Test konzistencie“
+
+Cvičenie s farbami písmen v dvoch kolách (A, B, D, E, H, M, R, S, T; 8 farieb). Má vlastné stránky,
+ale adresy a QR kódy sú rovnaké ako pri dotazníku (`/<slovo>` do prezentácie, `/<slovo>/vyplnit` pre mobil).
+
+1. V `/admin` vytvor dotazník, prepni **Režim** na **Test konzistencie**, ulož a stav prepni na **Otvorený**.
+2. Do prezentácie daj **ten istý odkaz na dvoch slajdoch**: za sekciou 2 (kolo 1) a za sekciou 5 (kolo 2).
+3. **Kolo 1:** stránka ukáže QR kód a počet hotových. Na mobile sa písmená zobrazujú po jednom, ťuknutím
+   na farbu sa uloží a ide sa ďalej. Po 9. písmene sa kolo zavrie a farby sa už neukážu (ani na mobile).
+   **Ďalej** na prezentéri ukončí kolo 1 a zavrie stránku.
+4. **Kolo 2:** keď sa stránka otvorí druhýkrát, kolo 2 sa spustí samo. Mobily, ktoré majú kolo 1 hotové,
+   sa prepnú samé (alebo znova naskenujú QR v tom istom prehliadači), písmená sú v náhodnom poradí.
+5. **Ďalej** → histogram: koľko ľudí má 0 až 9 zhôd. Každý na mobile vidí svoje skóre a porovnanie oboch kôl.
+
+Kolo prepína prezentácia iba vtedy, keď je v tom istom prehliadači niekto **prihlásený do `/admin`**
+(inak sa ukáže upozornenie). Kolo sa dá prepnúť aj ručne v editore (**Kolo 1 / Prestávka / Kolo 2**).
+**Vymazať odpovede** vráti test na kolo 1 – tak ho pred hodinou otestuješ a vynuluješ.
+
+Kto kolo 1 nedokončil, môže ho dokončiť ešte počas prestávky; v kole 2 sa už nezapojí.
+
 ## Spustenie lokálne
 
 ```bash
