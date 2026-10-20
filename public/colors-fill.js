@@ -78,10 +78,10 @@ function render() {
     screen.replaceChildren(card('<h2>Test je uzavretý</h2><p class="muted">Odpovede sa už neprijímajú.</p>'));
   } else if (state.done[0]) {
     screen.replaceChildren(
-      card(`<h2>Kolo 1 je hotové ✓</h2>
-        <p>Tvoje farby sú uložené a skryté, ani tu ich neuvidíš. Skús si ich nezapamätať.</p>
-        <p class="muted">Kolo 2 príde na konci prezentácie, stránka sa prepne sama. Nechaj ju otvorenú,
-          alebo potom znova naskenuj QR kód v tom istom prehliadači.</p>`)
+      card(`<h2>Sledujte prezentáciu</h2>
+        <p>Kolo 1 je hotové ✓. Na tomto telefóne teraz nič neuvidíte, vaše farby sú uložené a skryté.</p>
+        <p class="muted">Kolo 2 príde na konci prezentácie, stránka sa prepne sama. Nechajte ju otvorenú,
+          alebo potom znova naskenujte QR kód v tom istom prehliadači.</p>`)
     );
     wait = true;
   } else {
