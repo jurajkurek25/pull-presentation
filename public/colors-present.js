@@ -10,6 +10,31 @@ const KEYS = {
   fullscreen: ['F5'],
 };
 const BAR_COLOR = '#2563eb';
+// Agreed (not natural) cut-off for the discussion: "at least 7 of 9" would count as consistent.
+const THRESHOLD = 7;
+const THRESHOLD_COLOR = '#dc2626';
+
+// Dashed vertical line between the bars THRESHOLD-1 and THRESHOLD, with a label on top.
+const thresholdLine = {
+  id: 'threshold',
+  afterDatasetsDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    const x = (scales.x.getPixelForValue(THRESHOLD - 1) + scales.x.getPixelForValue(THRESHOLD)) / 2;
+    ctx.save();
+    ctx.strokeStyle = THRESHOLD_COLOR;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.stroke();
+    ctx.fillStyle = THRESHOLD_COLOR;
+    ctx.font = `700 ${Math.round(innerHeight * 0.026)}px system-ui, sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(`hranica: aspoň ${THRESHOLD} z 9`, x + 10, chartArea.top + 4);
+    ctx.restore();
+  },
+};
 
 const slug = location.pathname.split('/')[1];
 const deck = location.pathname.split('/')[2] === 'kolo2' ? 'round2' : 'round1';
@@ -111,7 +136,8 @@ function show(index) {
 
 function updateHistogram(slide) {
   const total = stats.histogram.reduce((a, b) => a + b, 0);
-  slide.el.querySelector('[data-note]').textContent = `Obe kolá dokončilo: ${total}`;
+  const above = stats.histogram.slice(THRESHOLD).reduce((a, b) => a + b, 0);
+  slide.el.querySelector('[data-note]').textContent = `Obe kolá dokončilo: ${total} · aspoň ${THRESHOLD} z 9: ${above}`;
   if (slide.chart) {
     slide.chart.data.datasets[0].data = stats.histogram;
     return slide.chart.update();
@@ -124,6 +150,7 @@ function updateHistogram(slide) {
       labels: stats.histogram.map((_, k) => String(k)),
       datasets: [{ data: stats.histogram, backgroundColor: BAR_COLOR, borderRadius: 6 }],
     },
+    plugins: [thresholdLine],
     options: {
       responsive: true,
       maintainAspectRatio: false,

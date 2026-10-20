@@ -116,7 +116,7 @@ QR kód pre mobil je rovnaký ako pri dotazníku (`/<slovo>/vyplnit`). Do prezen
 4. **Kolo 2:** keď prezentácia príde na slajd s odkazom `/kolo2` a otvorí stránku, kolo 2 sa spustí. Mobily,
    ktoré majú kolo 1 hotové, sa prepnú samé (alebo znova naskenujú QR v tom istom prehliadači), písmená sú
    v náhodnom poradí. Kolo 1 sa tým zavrie.
-5. **Ďalej** → histogram: koľko ľudí má 0 až 9 zhôd. Každý na mobile vidí svoje skóre a porovnanie oboch kôl.
+5. **Ďalej** → histogram: koľko ľudí má 0 až 9 zhôd, s čiarkovanou hranicou „aspoň 7 z 9“ (pod grafom je počet ľudí nad ňou; zmena v `THRESHOLD` v `public/colors-present.js`). Každý na mobile vidí svoje skóre a porovnanie oboch kôl.
 
 Stránka `/kolo2` spustí kolo 2 iba vtedy, keď je v tom istom prehliadači niekto **prihlásený do `/admin`**
 (inak sa ukáže upozornenie), aby ho nemohol spustiť nikto zo študentov. Kolo sa dá prepnúť aj ručne
