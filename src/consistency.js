@@ -12,9 +12,8 @@ export const COLORS = [
   { name: 'hnedá', hex: '#92400e' },
   { name: 'sivá', hex: '#9ca3af' },
 ];
-// round1: round 1 is open. break: round 1 is over on the slides, late phones may still finish it.
-// round2: round 2 is open for those who finished round 1; round 1 is closed.
-export const PHASES = ['round1', 'break', 'round2'];
+// round1: round 1 is open. round2: round 2 is open for those who finished round 1; round 1 is closed.
+export const PHASES = ['round1', 'round2'];
 
 export const isComplete = (roundPicks) => Object.keys(roundPicks).length === LETTERS.length;
 const matches = (picks) => LETTERS.filter((l) => picks[1][l] === picks[2][l]).length;

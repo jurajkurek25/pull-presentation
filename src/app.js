@@ -141,6 +141,12 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     if (!form) return res.status(404).sendFile(path.join(pub, '404.html'));
     res.sendFile(path.join(pub, form.mode === 'consistency' ? 'colors-fill.html' : 'fill.html'));
   });
+  // Consistency test, round 2: the slide that links here starts round 2 when it opens the page.
+  app.get('/:slug/kolo2', (req, res) => {
+    const form = formBySlug(req.params.slug);
+    if (form?.mode !== 'consistency') return res.status(404).sendFile(path.join(pub, '404.html'));
+    res.sendFile(path.join(pub, 'colors-present.html'));
+  });
 
   // ---------- presentation (public, read-only) ----------
   app.get('/api/p/:slug', async (req, res) => {
@@ -156,7 +162,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     const form = mustForm(formBySlug(req.params.slug));
     hub.subscribe(form.id, req, res);
   });
-  // Moves the consistency test between rounds; the presentation does it on the presenter's keys,
+  // Moves the consistency test between rounds; the round 2 page does it when it opens,
   // so it needs the presenter to be logged in in that browser.
   app.put('/api/p/:slug/phase', requireUser(db), (req, res) => {
     const form = mustForm(formBySlug(req.params.slug));

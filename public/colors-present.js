@@ -1,7 +1,7 @@
-// Presentation for the consistency test. It is opened twice from the slides:
-//   1st time (phase round1): QR slide for round 1. "Next" on it ends round 1 and closes the page.
-//   2nd time (phase break):  opening it starts round 2. QR slide for round 2, then the histogram.
-// Changing the phase needs the presenter to be logged in to /admin in this browser.
+// Presentation for the consistency test, opened from two slides:
+//   /<slug>        QR slide for round 1.
+//   /<slug>/kolo2  opening it starts round 2. QR slide for round 2, then the histogram.
+// Starting round 2 needs the presenter to be logged in to /admin in this browser.
 // Keys and closing work like on the survey presentation (see present.js).
 const KEYS = {
   next: ['PageDown', 'ArrowRight', 'ArrowDown', ' ', 'Enter'],
@@ -12,16 +12,15 @@ const KEYS = {
 const BAR_COLOR = '#2563eb';
 
 const slug = location.pathname.split('/')[1];
+const deck = location.pathname.split('/')[2] === 'kolo2' ? 'round2' : 'round1';
 const $ = (id) => document.getElementById(id);
 
 let fillUrl = '';
 let qrSvg = '';
 let wifi = null;
-let deck = ''; // 'round1' or 'round2'
 let slides = []; // { el, kind: 'round' | 'histogram', chart }
 let current = 0;
 let stats = null;
-let leaving = false; // round 1 just ended: keep its slide until the page closes
 
 async function init() {
   const res = await fetch(`/api/p/${encodeURIComponent(slug)}`);
@@ -30,8 +29,9 @@ async function init() {
   fillUrl = payload.fillUrl;
   qrSvg = payload.qrSvg;
   wifi = payload.wifi;
+  build();
   apply(payload);
-  if (payload.form.phase === 'break') setPhase('round2');
+  if (deck === 'round2' && payload.form.phase !== 'round2') setPhase('round2');
 
   const es = new EventSource(`/api/p/${encodeURIComponent(slug)}/stream`);
   es.onmessage = (e) => {
@@ -57,8 +57,6 @@ function apply({ form, stats: s }) {
   document.title = form.title;
   $('title').textContent = form.title;
   stats = s;
-  const wanted = form.phase === 'round1' ? 'round1' : 'round2';
-  if (wanted !== deck && !leaving) build(wanted);
   const round = stats.rounds[deck === 'round1' ? 0 : 1];
   $('done').textContent = round.done;
   $('inProgress').textContent = round.inProgress;
@@ -81,9 +79,8 @@ function fromTemplate(id) {
   return $(id).content.firstElementChild.cloneNode(true);
 }
 
-function build(kind) {
-  for (const s of slides) s.chart?.destroy();
-  deck = kind;
+function build() {
+  const kind = deck;
   const round = fromTemplate('tpl-round');
   round.querySelector('[data-round-title]').textContent =
     kind === 'round1' ? 'Kolo 1: ku každému písmenu vyber farbu' : 'Kolo 2: tie isté písmená, iné poradie';
@@ -162,17 +159,12 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
-document.addEventListener('keydown', async (e) => {
+document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.altKey || e.metaKey) return;
   if (KEYS.next.includes(e.key)) {
     e.preventDefault();
-    if (current < slides.length - 1) return show(current + 1);
-    // Leaving round 1 forward ends it; the next time the page opens, round 2 starts.
-    if (deck === 'round1') {
-      leaving = true;
-      if (!(await setPhase('break'))) return (leaving = false);
-    }
-    closeTab();
+    if (current < slides.length - 1) show(current + 1);
+    else closeTab();
   } else if (KEYS.prev.includes(e.key)) {
     e.preventDefault();
     if (current === 0) closeTab();

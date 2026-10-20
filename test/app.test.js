@@ -239,6 +239,7 @@ test('test konzistencie: dve kolá, kolo 1 je skryté, plátno ukáže histogram
     await call('PUT', `/api/admin/forms/${created.id}/status`, { status: 'open' });
     assert.match(await (await fetch(`${base}/farby`)).text(), /colors-present\.js/);
     assert.match(await (await fetch(`${base}/farby/vyplnit`)).text(), /colors-fill\.js/);
+    assert.match(await (await fetch(`${base}/farby/kolo2`)).text(), /colors-present\.js/);
 
     const { letters, colors } = (await call('GET', '/api/k/farby')).body;
     assert.equal(letters.length, 9);
@@ -267,8 +268,8 @@ test('test konzistencie: dve kolá, kolo 1 je skryté, plátno ukáže histogram
 
     // Changing the round requires a logged-in presenter.
     assert.equal((await fetch(`${base}/api/p/farby/phase`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"phase":"round2"}' })).status, 401);
-    await call('PUT', '/api/p/farby/phase', { phase: 'break' });
-    assert.equal((await pick(C, 1, 'B', 0)).status, 200, 'počas prestávky sa kolo 1 dá dokončiť');
+    assert.equal((await call('PUT', '/api/p/farby/phase', { phase: 'break' })).status, 400);
+    assert.equal((await pick(C, 1, 'B', 0)).status, 200, 'kým nezačne kolo 2, kolo 1 sa dá dokončiť');
     await call('PUT', '/api/p/farby/phase', { phase: 'round2' });
     assert.equal((await pick(C, 1, 'D', 0)).status, 409, 'v kole 2 je kolo 1 zavreté');
     assert.equal((await pick(C, 2, 'A', 0)).status, 409, 'bez dokončeného kola 1 sa kolo 2 nedá');

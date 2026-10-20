@@ -3,7 +3,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 const STATUS_LABELS = { draft: 'Koncept', open: 'Otvorený', closed: 'Uzavretý' };
 const TYPE_LABELS = { single: 'Jedna možnosť', multi: 'Viac možností', scale: 'Škála 1–5', text: 'Voľný text' };
 const SCALE_OPTIONS = ['1', '2', '3', '4', '5'];
-const PHASE_LABELS = { round1: 'Kolo 1', break: 'Prestávka', round2: 'Kolo 2' };
+const PHASE_LABELS = { round1: 'Kolo 1', round2: 'Kolo 2' };
 const MODE_BADGES = { scored: 'Test', consistency: 'Konzistencia' };
 
 // Options as the server will store them (blank lines dropped, scale fixed).
@@ -179,6 +179,10 @@ async function formView(id) {
         Test: odpovede dávajú body výsledkom, každý respondent dostane výsledok s najviac bodmi a v prezentácii je jeden koláč výsledkov.
         Test konzistencie: dve kolá priraďovania farieb k písmenám, v prezentácii histogram zhôd (otázky sa nepoužívajú).</p>
       <div id="consistencySettings" style="margin-top:14px" ${form.mode === 'consistency' ? '' : 'hidden'}>
+        <p style="margin:0 0 6px"><b>Odkaz na slajd s kolom 1:</b> <code class="url">${esc(presentUrl)}</code>
+          <button data-copy="${esc(presentUrl)}">Kopírovať</button></p>
+        <p style="margin:0 0 12px"><b>Odkaz na slajd s kolom 2:</b> <code class="url">${esc(presentUrl)}/kolo2</code>
+          <button data-copy="${esc(presentUrl)}/kolo2">Kopírovať</button></p>
         <div class="row">
           <div><b>Kolo:</b></div>
           <div class="seg" id="phase">
@@ -187,8 +191,8 @@ async function formView(id) {
               .join('')}
           </div>
         </div>
-        <p class="muted small" style="margin:8px 0 0">Kolá prepína prezentácia sama (Ďalej na slajde kola 1 = prestávka,
-          ďalšie otvorenie prezentácie = kolo 2). Tu ich môžeš prepnúť ručne. Vymazanie odpovedí vráti test na kolo 1.</p>
+        <p class="muted small" style="margin:8px 0 0">Kolo 2 sa spustí samo, keď sa otvorí stránka zo slajdu s kolom 2
+          (v prehliadači musíš byť prihlásený sem do administrácie). Tu ho môžeš prepnúť aj ručne. Vymazanie odpovedí vráti test na kolo 1.</p>
       </div>
       <div id="scoredSettings" style="margin-top:14px" ${mode === 'scored' ? '' : 'hidden'}>
         <div class="field"><label for="categories">Možné výsledky (každý na nový riadok, 2–8)</label>

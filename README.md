@@ -104,22 +104,29 @@ respondentom neposielajú, takže v prehliadači nevidia, ktorá odpoveď vedie 
 ## Režim „Test konzistencie“
 
 Cvičenie s farbami písmen v dvoch kolách (A, B, D, E, H, M, R, S, T; 8 farieb). Má vlastné stránky,
-ale adresy a QR kódy sú rovnaké ako pri dotazníku (`/<slovo>` do prezentácie, `/<slovo>/vyplnit` pre mobil).
+QR kód pre mobil je rovnaký ako pri dotazníku (`/<slovo>/vyplnit`). Do prezentácie idú dva odkazy:
+`/<slovo>` (kolo 1) a `/<slovo>/kolo2` (kolo 2).
 
 1. V `/admin` vytvor dotazník, prepni **Režim** na **Test konzistencie**, ulož a stav prepni na **Otvorený**.
-2. Do prezentácie daj **ten istý odkaz na dvoch slajdoch**: za sekciou 2 (kolo 1) a za sekciou 5 (kolo 2).
+2. Na slajd za sekciou 2 daj odkaz `forms.jurajkurek.com/<slovo>`, na slajd za sekciou 5
+   `forms.jurajkurek.com/<slovo>/kolo2` (v Canve ako text, v PowerPointe ako hypertextový odkaz).
 3. **Kolo 1:** stránka ukáže QR kód a počet hotových. Na mobile sa písmená zobrazujú po jednom, ťuknutím
    na farbu sa uloží a ide sa ďalej. Po 9. písmene sa kolo zavrie a farby sa už neukážu (ani na mobile).
-   **Ďalej** na prezentéri ukončí kolo 1 a zavrie stránku.
-4. **Kolo 2:** keď sa stránka otvorí druhýkrát, kolo 2 sa spustí samo. Mobily, ktoré majú kolo 1 hotové,
-   sa prepnú samé (alebo znova naskenujú QR v tom istom prehliadači), písmená sú v náhodnom poradí.
+   Mobil potom ukáže „Sledujte prezentáciu“. **Ďalej** na prezentéri zavrie stránku.
+4. **Kolo 2:** keď prezentácia príde na slajd s odkazom `/kolo2` a otvorí stránku, kolo 2 sa spustí. Mobily,
+   ktoré majú kolo 1 hotové, sa prepnú samé (alebo znova naskenujú QR v tom istom prehliadači), písmená sú
+   v náhodnom poradí. Kolo 1 sa tým zavrie.
 5. **Ďalej** → histogram: koľko ľudí má 0 až 9 zhôd. Každý na mobile vidí svoje skóre a porovnanie oboch kôl.
 
-Kolo prepína prezentácia iba vtedy, keď je v tom istom prehliadači niekto **prihlásený do `/admin`**
-(inak sa ukáže upozornenie). Kolo sa dá prepnúť aj ručne v editore (**Kolo 1 / Prestávka / Kolo 2**).
+Stránka `/kolo2` spustí kolo 2 iba vtedy, keď je v tom istom prehliadači niekto **prihlásený do `/admin`**
+(inak sa ukáže upozornenie), aby ho nemohol spustiť nikto zo študentov. Kolo sa dá prepnúť aj ručne
+v editore (**Kolo 1 / Kolo 2**), tam sú aj oba odkazy na skopírovanie.
 **Vymazať odpovede** vráti test na kolo 1 – tak ho pred hodinou otestuješ a vynuluješ.
 
-Kto kolo 1 nedokončil, môže ho dokončiť ešte počas prestávky; v kole 2 sa už nezapojí.
+Kto kolo 1 nedokončil, môže ho dokončiť až do začiatku kola 2; v kole 2 sa už nezapojí.
+
+Rozšírenie pre Canvu rozpoznáva adresu `/<slovo>/kolo2` od verzie 1.5 – po `git pull` ho v
+`chrome://extensions` obnov (**↻**).
 
 ## Spustenie lokálne
 
