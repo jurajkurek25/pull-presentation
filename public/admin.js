@@ -85,7 +85,7 @@ async function formsView() {
           ${forms
             .map(
               (f) => `<tr>
-                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>${f.mode === 'scored' ? ' <span class="badge">Test</span>' : ''}
+                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>${f.mode === 'scored' ? ' <span class="badge">Test</span>' : f.mode === 'quiz' ? ' <span class="badge">Kvíz</span>' : ''}
                   <div class="muted small">${esc(f.created_by_name ?? '')}</div></td>
                 <td><a href="/${esc(f.slug)}" target="_blank">/${esc(f.slug)}</a></td>
                 <td><span class="badge ${f.status}">${STATUS_LABELS[f.status]}</span></td>
@@ -131,11 +131,13 @@ async function formView(id) {
   let mode = form.mode;
   let categories = form.categories;
   // Points are kept per option label, so editing/reordering options keeps their points.
-  let qs = questions.map(({ type, text, options, scores }) => ({
+  let qs = questions.map(({ type, text, options, scores, correct, time_limit }) => ({
     type,
     text,
     options,
     points: Object.fromEntries(options.map((o, i) => [o, scores[i] ?? []])),
+    correctLabel: options[correct] ?? null, // by label, so editing options keeps the right answer
+    timeLimit: time_limit ?? 20,
   }));
 
   view.innerHTML = `
@@ -170,10 +172,13 @@ async function formView(id) {
         <div class="seg" id="mode">
           <button data-mode="survey" aria-pressed="${mode === 'survey'}">Prieskum</button>
           <button data-mode="scored" aria-pressed="${mode === 'scored'}">Vyhodnocovací test</button>
+          <button data-mode="quiz" aria-pressed="${mode === 'quiz'}">Kvíz</button>
         </div>
       </div>
       <p class="muted small" style="margin:8px 0 0">Prieskum: v prezentácii je graf pre každú otázku.
-        Test: odpovede dávajú body výsledkom, každý respondent dostane výsledok s najviac bodmi a v prezentácii je jeden koláč výsledkov.</p>
+        Test: odpovede dávajú body výsledkom, každý respondent dostane výsledok s najviac bodmi a v prezentácii je jeden koláč výsledkov.
+        Kvíz: hráči odpovedajú na čas, za správnu a rýchlu odpoveď dostanú body, po každej otázke je poradie.
+        Otázky posúvaš šípkou prezentéra – v prehliadači s prezentáciou musíš byť prihlásený v administrácii.</p>
       <div id="scoredSettings" style="margin-top:14px" ${mode === 'scored' ? '' : 'hidden'}>
         <div class="field"><label for="categories">Možné výsledky (každý na nový riadok, 2–8)</label>
           <textarea id="categories" rows="3" placeholder="Introvert&#10;Extrovert">${esc(categories.join('\n'))}</textarea></div>
@@ -204,7 +209,21 @@ async function formView(id) {
 
   const currentCategories = () => categories.map((c) => c.trim()).filter(Boolean);
 
+  function quizControls(q) {
+    const opts = effectiveOptions(q);
+    if (q.type !== 'single') return '<p class="error">V kvíze musí byť typ otázky „Jedna možnosť“.</p>';
+    return `<div class="row" style="margin-top:12px;align-items:flex-end">
+        <div style="flex:2;min-width:180px"><label>Správna odpoveď</label>
+          <select data-quiz="correct"><option value="">– vyber –</option>${opts
+            .map((o) => `<option ${o === q.correctLabel ? 'selected' : ''}>${esc(o)}</option>`)
+            .join('')}</select></div>
+        <div style="flex:1;min-width:120px"><label>Čas na odpoveď (s)</label>
+          <input type="number" data-quiz="time" min="5" max="240" step="1" value="${q.timeLimit}"></div>
+      </div>${opts.length > 4 ? '<p class="error">Kvíz má najviac 4 možnosti.</p>' : ''}`;
+  }
+
   function scoreTable(q) {
+    if (mode === 'quiz') return quizControls(q);
     const cats = currentCategories();
     const opts = effectiveOptions(q);
     if (mode !== 'scored' || !opts.length) return '';
@@ -261,6 +280,8 @@ async function formView(id) {
       q.options = e.target.value.split('\n');
       el.querySelector('.scores-wrap').innerHTML = scoreTable(q);
     }
+    if (e.target.dataset.quiz === 'correct') q.correctLabel = e.target.value || null;
+    if (e.target.dataset.quiz === 'time') q.timeLimit = parseInt(e.target.value, 10) || 0;
     if (e.target.dataset.score) {
       const [oi, ci] = e.target.dataset.score.split(',').map(Number);
       const label = effectiveOptions(q)[oi];
@@ -297,7 +318,7 @@ async function formView(id) {
   });
 
   view.querySelector('#add').addEventListener('click', () => {
-    qs.push({ type: 'single', text: '', options: ['', ''], points: {} });
+    qs.push({ type: 'single', text: '', options: ['', ''], points: {}, correctLabel: null, timeLimit: 20 });
     renderQuestions();
     list.lastElementChild.querySelector('[data-f="text"]').focus();
   });
@@ -317,7 +338,9 @@ async function formView(id) {
           const options = effectiveOptions(q);
           const cats = currentCategories();
           const scores = mode === 'scored' ? options.map((o) => cats.map((_, ci) => q.points[o]?.[ci] ?? 0)) : [];
-          return { type: q.type, text: q.text, options, scores };
+          const correct = options.indexOf(q.correctLabel);
+          const quiz = mode === 'quiz' ? { correct: correct >= 0 ? correct : null, timeLimit: q.timeLimit } : {};
+          return { type: q.type, text: q.text, options, scores, ...quiz };
         }),
       });
       if (slug !== form.slug) return formView(id);

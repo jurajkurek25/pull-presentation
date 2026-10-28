@@ -6,6 +6,18 @@ import { getForm, getQuestions, responseCounts } from './db.js';
 import { createUser, currentUser, hashPassword, login, logout, requireUser } from './auth.js';
 import { QUESTION_TYPES, SCALE_OPTIONS, classify, computeStats, normalizeValue } from './stats.js';
 import { createHub } from './hub.js';
+import { HttpError, fail } from './errors.js';
+import {
+  QUIZ_DEFAULT_TIME,
+  QUIZ_MAX_OPTIONS,
+  advanceQuiz,
+  answerQuiz,
+  joinQuiz,
+  playerInfo,
+  quizState,
+  quizStats,
+  resetQuiz,
+} from './quiz.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pub = path.join(root, 'public');
@@ -13,17 +25,8 @@ const pub = path.join(root, 'public');
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 const RESERVED_SLUGS = new Set(['admin', 'api', 'static', 'healthz', 'favicon.ico', 'robots.txt']);
 const STATUSES = ['draft', 'open', 'closed'];
-const MODES = ['survey', 'scored'];
+const MODES = ['survey', 'scored', 'quiz'];
 
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-const fail = (status, message) => {
-  throw new HttpError(status, message);
-};
 
 function validateSlug(slug) {
   slug = String(slug ?? '').trim().toLowerCase();
@@ -59,7 +62,19 @@ function validateScores(scores, options, categories, n) {
   return scores;
 }
 
-function validateQuestions(input, categories) {
+// Quiz: single choice with 2–4 options, one correct option and a time limit in seconds.
+function validateQuizFields(q, options, n) {
+  if (q.type !== 'single') fail(400, `Otázka ${n}: v kvíze musí byť typ „Jedna možnosť“.`);
+  if (options.length > QUIZ_MAX_OPTIONS) fail(400, `Otázka ${n}: kvíz má najviac ${QUIZ_MAX_OPTIONS} možnosti.`);
+  if (!Number.isInteger(q.correct) || q.correct < 0 || q.correct >= options.length) {
+    fail(400, `Otázka ${n}: vyber správnu odpoveď.`);
+  }
+  const timeLimit = q.timeLimit ?? QUIZ_DEFAULT_TIME;
+  if (!Number.isInteger(timeLimit) || timeLimit < 5 || timeLimit > 240) fail(400, `Otázka ${n}: čas musí byť 5 až 240 sekúnd.`);
+  return { correct: q.correct, timeLimit };
+}
+
+function validateQuestions(input, categories, mode) {
   if (!Array.isArray(input) || input.length > 50) fail(400, 'Neplatný zoznam otázok.');
   return input.map((q, i) => {
     const n = i + 1;
@@ -73,7 +88,8 @@ function validateQuestions(input, categories) {
       if (options.length < 2 || options.length > 12) fail(400, `Otázka ${n}: zadaj 2 až 12 možností.`);
       if (options.some((o) => o.length > 100)) fail(400, `Otázka ${n}: možnosť je dlhšia ako 100 znakov.`);
     }
-    return { type: q.type, text, options, scores: validateScores(q.scores, options, categories, n) };
+    const quiz = mode === 'quiz' ? validateQuizFields(q, options, n) : { correct: null, timeLimit: null };
+    return { type: q.type, text, options, scores: validateScores(q.scores, options, categories, n), ...quiz };
   });
 }
 
@@ -105,14 +121,28 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     showQuestions: form.show_questions,
     resultTitle: form.result_title,
   });
-  // Scores stay on the server so respondents can't see which answer leads where.
-  const publicQuestions = (formId) => getQuestions(db, formId).map(({ scores, ...q }) => q);
+  // Scores and quiz answers stay on the server so respondents can't see which answer leads where.
+  const publicQuestions = (formId) => getQuestions(db, formId).map(({ scores, correct, ...q }) => q);
   const livePayload = (formId) => {
     const form = formById(formId);
     if (!form) return null;
-    return { form: publicForm(form), questions: publicQuestions(formId), stats: computeStats(db, form) };
+    const stats = computeStats(db, form);
+    if (form.mode === 'quiz') stats.quiz = quizStats(db, form);
+    return { form: publicForm(form), questions: publicQuestions(formId), stats };
   };
   const hub = createHub(livePayload);
+
+  // Reveal the question when its time is up, even if nobody calls the API at that moment.
+  const scheduleReveal = (form, state) => {
+    if (state.phase !== 'question') return;
+    setTimeout(() => {
+      const current = formById(form.id);
+      if (current) quizState(db, current);
+      hub.notify(form.id);
+    }, state.deadline - Date.now() + 600).unref();
+  };
+  const notQuiz = (form) => form.mode === 'quiz' && fail(409, 'Toto je kvíz, odpovedá sa v ňom inak.');
+  const mustQuiz = (form) => form.mode === 'quiz' || fail(409, 'Toto nie je kvíz.');
 
   // ---------- static pages ----------
   app.use('/static', express.static(pub, { maxAge: '1h' }));
@@ -131,8 +161,9 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     res.sendFile(path.join(pub, 'present.html'));
   });
   app.get('/:slug/vyplnit', (req, res) => {
-    if (!formBySlug(req.params.slug)) return res.status(404).sendFile(path.join(pub, '404.html'));
-    res.sendFile(path.join(pub, 'fill.html'));
+    const form = formBySlug(req.params.slug);
+    if (!form) return res.status(404).sendFile(path.join(pub, '404.html'));
+    res.sendFile(path.join(pub, form.mode === 'quiz' ? 'quiz.html' : 'fill.html'));
   });
 
   // ---------- presentation (public, read-only) ----------
@@ -180,6 +211,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
   });
   app.put('/api/f/:slug/answers', (req, res) => {
     const form = mustForm(formBySlug(req.params.slug));
+    notQuiz(form);
     const token = validateToken(req.body.token);
     const question = getQuestions(db, form.id).find((q) => q.id === req.body.questionId) ?? fail(400, 'Neznáma otázka.');
     let value;
@@ -204,11 +236,33 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
   });
   app.post('/api/f/:slug/submit', (req, res) => {
     const form = mustForm(formBySlug(req.params.slug));
+    notQuiz(form);
     const token = validateToken(req.body.token);
     db.transaction(() => {
       const response = openResponse(form, token);
       db.prepare('UPDATE responses SET submitted_at = CURRENT_TIMESTAMP WHERE id = ?').run(response.id);
     })();
+    hub.notify(form.id);
+    res.json({ ok: true });
+  });
+
+  // ---------- quiz players ----------
+  app.get('/api/q/:slug/me', (req, res) => {
+    const form = mustForm(formBySlug(req.params.slug));
+    mustQuiz(form);
+    res.json(playerInfo(db, form, validateToken(req.query.token)));
+  });
+  app.post('/api/q/:slug/join', (req, res) => {
+    const form = mustForm(formBySlug(req.params.slug));
+    mustQuiz(form);
+    const name = joinQuiz(db, form, validateToken(req.body.token), req.body.name);
+    hub.notify(form.id);
+    res.json({ name });
+  });
+  app.post('/api/q/:slug/answer', (req, res) => {
+    const form = mustForm(formBySlug(req.params.slug));
+    mustQuiz(form);
+    answerQuiz(db, form, validateToken(req.body.token), req.body.index, req.body.choice);
     hub.notify(form.id);
     res.json({ ok: true });
   });
@@ -257,7 +311,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     const mode = req.body.mode ?? form.mode;
     if (!MODES.includes(mode)) fail(400, 'Neplatný režim.');
     const categories = mode === 'scored' ? validateCategories(req.body.categories ?? form.categories) : [];
-    const questions = validateQuestions(req.body.questions, categories);
+    const questions = validateQuestions(req.body.questions, categories, mode);
     const resultTitle = String(req.body.resultTitle ?? form.result_title).trim();
     if (resultTitle.length > 200) fail(400, 'Nadpis výsledkov môže mať max. 200 znakov.');
     const other = formBySlug(slug);
@@ -282,17 +336,20 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
         form.id
       );
       if (structure(existing) === structure(questions)) {
-        const update = db.prepare('UPDATE questions SET scores = ? WHERE id = ?');
-        existing.forEach((q, i) => update.run(JSON.stringify(questions[i].scores), q.id));
+        const update = db.prepare('UPDATE questions SET scores = ?, correct = ?, time_limit = ? WHERE id = ?');
+        existing.forEach((q, i) =>
+          update.run(JSON.stringify(questions[i].scores), questions[i].correct, questions[i].timeLimit, q.id)
+        );
       } else {
         db.prepare('DELETE FROM questions WHERE form_id = ?').run(form.id);
         const insert = db.prepare(
-          'INSERT INTO questions (form_id, position, type, text, options, scores) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO questions (form_id, position, type, text, options, scores, correct, time_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
         questions.forEach((q, i) =>
-          insert.run(form.id, i, q.type, q.text, JSON.stringify(q.options), JSON.stringify(q.scores))
+          insert.run(form.id, i, q.type, q.text, JSON.stringify(q.options), JSON.stringify(q.scores), q.correct, q.timeLimit)
         );
       }
+      if (mode !== form.mode || structure(existing) !== structure(questions)) resetQuiz(db, form);
     })();
     hub.notify(form.id);
     res.json({ ok: true });
@@ -307,8 +364,18 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
   admin.delete('/forms/:id/responses', (req, res) => {
     const form = mustForm(formById(req.params.id));
     db.prepare('DELETE FROM responses WHERE form_id = ?').run(form.id);
+    resetQuiz(db, form);
     hub.notify(form.id);
     res.json({ ok: true });
+  });
+  // The presenter's arrow key moves the quiz on; only a signed-in admin can do that.
+  admin.post('/quiz/:slug/next', (req, res) => {
+    const form = mustForm(formBySlug(req.params.slug));
+    mustQuiz(form);
+    const state = advanceQuiz(db, form);
+    scheduleReveal(form, state);
+    hub.notify(form.id);
+    res.json({ state });
   });
   admin.delete('/forms/:id', (req, res) => {
     const form = mustForm(formById(req.params.id));

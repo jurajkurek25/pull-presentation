@@ -40,9 +40,17 @@ async function init() {
   es.onerror = () => ($('conn').hidden = false);
 }
 
+let currentForm = null;
+
 function apply({ form, questions, stats }) {
+  currentForm = form;
   document.title = form.title;
   $('title').textContent = form.title;
+  const quizMode = form.mode === 'quiz';
+  document.querySelectorAll('.survey-count').forEach((el) => (el.hidden = quizMode));
+  $('playersCount').hidden = !quizMode;
+  if (quizMode) return applyQuiz(form, questions, stats.quiz);
+  quizKey = '';
   const sig = JSON.stringify([questions, form.mode, form.categories, form.showQuestions, form.resultTitle]);
   if (sig !== questionsSig) {
     questionsSig = sig;
@@ -72,6 +80,22 @@ function fromTemplate(id) {
   return $(id).content.firstElementChild.cloneNode(true);
 }
 
+function introSlide(fillTitle, hint) {
+  const intro = fromTemplate('tpl-intro');
+  intro.querySelector('[data-fill-title]').textContent = fillTitle;
+  if (hint) intro.querySelector('[data-hint]').textContent = hint;
+  if (wifi) {
+    intro.classList.add('has-wifi');
+    intro.querySelector('.wifi-step').hidden = false;
+    intro.querySelector('[data-wifi-qr]').innerHTML = wifi.qrSvg;
+    intro.querySelector('[data-wifi-ssid]').textContent = wifi.ssid;
+    intro.querySelector('[data-fill-title]').textContent = `2. ${fillTitle}`;
+  }
+  intro.querySelectorAll('[data-qr]').forEach((n) => (n.innerHTML = qrSvg));
+  intro.querySelectorAll('[data-url]').forEach((n) => (n.textContent = fillUrl.replace(/^https?:\/\//, '')));
+  return intro;
+}
+
 // Scored test: one pie of respondents' results (+ "Nerozhodne" for ties), optionally followed by the questions.
 function resultQuestion(categories, title) {
   return {
@@ -90,15 +114,7 @@ function build(form, questions) {
   for (const s of slides) s.chart?.destroy();
   const container = $('slides');
   container.replaceChildren();
-  slides = [{ el: fromTemplate('tpl-intro'), question: null }];
-  if (wifi) {
-    const intro = slides[0].el;
-    intro.classList.add('has-wifi');
-    intro.querySelector('.wifi-step').hidden = false;
-    intro.querySelector('[data-wifi-qr]').innerHTML = wifi.qrSvg;
-    intro.querySelector('[data-wifi-ssid]').textContent = wifi.ssid;
-    intro.querySelector('[data-fill-title]').textContent = '2. Naskenuj QR kód a odpovedaj';
-  }
+  slides = [{ el: introSlide('Naskenuj QR kód a odpovedaj'), question: null }];
   const scored = form.mode === 'scored';
   const shown = [...(scored ? [resultQuestion(form.categories, form.resultTitle)] : []), ...(!scored || form.showQuestions ? questions : [])];
   for (const q of shown) {
@@ -207,6 +223,136 @@ function renderWall(slide, stats) {
   wall.replaceChildren(...items);
 }
 
+// ---------- quiz ----------
+// The quiz state lives on the server; the presenter's arrow key asks it to move on.
+let quizKey = '';
+let quizDeadline = 0;
+let clockOffset = 0;
+let quizRefetched = false;
+
+const shapeTile = (i, cls = '') =>
+  `<div class="quiz-opt ${cls}" style="background:${QUIZ_SHAPES[i].color}">${QUIZ_SHAPES[i].svg}<span></span></div>`;
+
+function quizSection(cls, html) {
+  const el = document.createElement('section');
+  el.className = `slide active quiz-view ${cls}`;
+  el.innerHTML = html;
+  return el;
+}
+
+function renderQuizOptions(el, question, correct) {
+  el.querySelector('.quiz-options').innerHTML = question.options
+    .map((_, i) => shapeTile(i, correct === undefined ? '' : i === correct ? 'correct' : 'wrong'))
+    .join('');
+  el.querySelectorAll('.quiz-opt span').forEach((s, i) => (s.textContent = question.options[i] + (i === correct ? ' ✓' : '')));
+}
+
+function applyQuiz(form, questions, q) {
+  for (const s of slides) s.chart?.destroy();
+  slides = [];
+  questionsSig = '';
+  const { phase, index } = q.state;
+  const question = questions[index];
+  $('playersCount').querySelector('b').textContent = q.players;
+  const pill = $('status');
+  pill.className = `pill ${form.status === 'open' ? 'live' : ''}`;
+  pill.textContent = form.status !== 'open' ? 'Neotvorený' : phase === 'question' ? 'Odpovedajte!' : 'Kvíz';
+  $('position').textContent = question && phase !== 'final' ? `Otázka ${index + 1} / ${q.total}` : '';
+  clockOffset = q.serverNow - Date.now();
+  quizDeadline = phase === 'question' ? q.state.deadline : 0;
+
+  const key = `${phase}:${index}`;
+  if (key !== quizKey) {
+    quizKey = key;
+    quizRefetched = false;
+    let el;
+    if (phase === 'lobby') {
+      el = introSlide('Naskenuj QR kód a hraj', 'Zadaj prezývku a čakaj na štart.');
+      el.classList.add('active', 'quiz-lobby');
+      el.insertAdjacentHTML('beforeend', '<div class="quiz-players"></div>');
+    } else if (phase === 'question' || phase === 'reveal') {
+      el = quizSection(`quiz-${phase}`, `<div class="quiz-head"><span class="quiz-answered"></span>
+          ${phase === 'question' ? '<span class="quiz-clock" id="quizClock"></span>' : ''}</div>
+        <h2 class="quiz-text"></h2>
+        ${phase === 'reveal' ? '<div class="quiz-bars"></div>' : ''}
+        <div class="quiz-options ${question.options.length === 2 ? 'two' : ''}"></div>`);
+      el.querySelector('.quiz-text').textContent = question.text;
+      renderQuizOptions(el, question, phase === 'reveal' ? q.correct : undefined);
+    } else if (phase === 'leaderboard') {
+      el = quizSection('quiz-board-view', `<h2 class="quiz-title">Poradie po ${index + 1}. otázke</h2><ol class="quiz-board"></ol>`);
+    } else {
+      el = quizSection('quiz-final', `<h2 class="quiz-title">Víťazi</h2><div class="quiz-podium"></div><ol class="quiz-board rest" start="4"></ol>`);
+    }
+    $('slides').replaceChildren(el);
+  }
+
+  const el = $('slides').firstElementChild;
+  if (phase === 'lobby') {
+    const box = el.querySelector('.quiz-players');
+    box.replaceChildren(
+      ...q.names.map((n) => Object.assign(document.createElement('span'), { className: 'quiz-chip', textContent: n }))
+    );
+    if (!q.names.length) box.innerHTML = '<span class="quiz-wait">Čakáme na hráčov…</span>';
+  }
+  if (phase === 'question' || phase === 'reveal') {
+    el.querySelector('.quiz-answered').textContent = `Odpovede: ${q.answered ?? 0} / ${q.players}`;
+  }
+  if (phase === 'reveal') {
+    const max = Math.max(1, ...q.counts);
+    el.querySelector('.quiz-bars').innerHTML = q.counts
+      .map(
+        (n, i) => `<div class="quiz-bar ${i === q.correct ? 'correct' : 'wrong'}">
+          <span class="quiz-bar-n">${n}${i === q.correct ? ' ✓' : ''}</span>
+          <span class="quiz-bar-fill" style="background:${QUIZ_SHAPES[i].color};--h:${(n / max) * 100}%"></span>
+          <span class="quiz-bar-icon" style="background:${QUIZ_SHAPES[i].color}">${QUIZ_SHAPES[i].svg}</span></div>`
+      )
+      .join('');
+  }
+  if (phase === 'leaderboard' || phase === 'final') {
+    const board = q.leaderboard ?? [];
+    const entry = (tag, p, cls = '') => {
+      const node = document.createElement(tag);
+      node.className = cls;
+      node.innerHTML = '<span class="name"></span><span class="score"></span>';
+      node.querySelector('.name').textContent = p.name;
+      node.querySelector('.score').textContent = `${p.score} b.`;
+      return node;
+    };
+    if (phase === 'leaderboard') el.querySelector('.quiz-board').replaceChildren(...board.map((p) => entry('li', p)));
+    else {
+      // Podium order on screen: 2nd, 1st, 3rd.
+      el.querySelector('.quiz-podium').replaceChildren(
+        ...[1, 0, 2]
+          .filter((i) => board[i])
+          .map((i) => {
+            const step = entry('div', board[i], `quiz-step place-${i + 1}`);
+            step.insertAdjacentHTML('beforeend', `<div class="block">${i + 1}</div>`);
+            return step;
+          })
+      );
+      el.querySelector('.rest').replaceChildren(...board.slice(3).map((p) => entry('li', p)));
+    }
+  }
+}
+
+setInterval(() => {
+  const clock = $('quizClock');
+  if (!clock || !quizDeadline) return;
+  const left = quizDeadline - (Date.now() + clockOffset);
+  clock.textContent = Math.max(0, Math.ceil(left / 1000));
+  // The server reveals the question when time is up; ask once in case its notice got lost.
+  if (left < -1500 && !quizRefetched) {
+    quizRefetched = true;
+    fetch(`/api/p/${encodeURIComponent(slug)}`).then((r) => r.json()).then(apply, () => {});
+  }
+}, 250);
+
+async function quizNext() {
+  const res = await fetch(`/api/admin/quiz/${encodeURIComponent(slug)}/next`, { method: 'POST' });
+  if (res.status === 401) toast('Na ovládanie kvízu sa v tomto prehliadači prihlás do /admin.');
+  else if (!res.ok) toast((await res.json().catch(() => ({}))).error || 'Kvíz sa nepodarilo posunúť.');
+}
+
 // ---------- presenter / keyboard ----------
 let toastTimer;
 function toast(text) {
@@ -249,6 +395,13 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (currentForm?.mode === 'quiz' && (KEYS.next.includes(e.key) || KEYS.prev.includes(e.key))) {
+    e.preventDefault();
+    const phase = quizKey.split(':')[0];
+    if (KEYS.next.includes(e.key)) phase === 'final' ? closeTab() : quizNext();
+    else if (phase === 'lobby') closeTab();
+    return;
+  }
   if (KEYS.next.includes(e.key)) {
     e.preventDefault();
     if (current === slides.length - 1) closeTab();

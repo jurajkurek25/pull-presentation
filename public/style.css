@@ -85,3 +85,30 @@ code.url { background: #f3f4f6; padding: 3px 8px; border-radius: 6px; font-size:
 @media (max-width: 640px) {
   .hide-sm { display: none; }
 }
+
+/* quiz (phones) */
+.quiz-body { background: #46178f; color: #fff; min-height: 100dvh; }
+.quiz-screen { min-height: 100dvh; display: flex; flex-direction: column; padding: 16px; gap: 12px; }
+.quiz-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
+.quiz-center h1 { font-size: 1.8rem; margin: 0; }
+.quiz-center p { margin: 0; font-size: 1.1rem; opacity: .9; }
+.quiz-join { width: 100%; max-width: 360px; display: grid; gap: 10px; }
+.quiz-join input { font-size: 1.2rem; padding: 14px; text-align: center; font-weight: 700; }
+.quiz-join button { font-size: 1.2rem; padding: 14px; background: #333; color: #fff; border: 0; font-weight: 700; }
+.quiz-top { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.quiz-timer { background: #fff; color: #46178f; border-radius: 999px; min-width: 48px; padding: 6px 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.quiz-question { font-size: 1.15rem; font-weight: 700; text-align: center; margin: 0; }
+.quiz-tiles { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quiz-tiles.two { grid-template-columns: 1fr; }
+.quiz-tile { border: 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: #fff; font-size: 1rem; font-weight: 700; padding: 10px; box-shadow: inset 0 -6px 0 rgba(0,0,0,.2); min-height: 120px; }
+.quiz-tile svg, .quiz-shape svg { width: 56px; height: 56px; }
+.quiz-tile:active { transform: scale(.97); }
+.quiz-result { border-radius: 16px; padding: 28px 20px; width: 100%; max-width: 420px; }
+.quiz-result.ok { background: #26890c; }
+.quiz-result.bad { background: #e21b3c; }
+.quiz-result.none { background: #555; }
+.quiz-result .big { font-size: 2rem; font-weight: 800; }
+.quiz-score { font-size: 1.1rem; font-weight: 700; }
+.quiz-shape { width: 88px; height: 88px; border-radius: 12px; display: grid; place-items: center; }
+.quiz-error { background: rgba(0,0,0,.35); padding: 8px 12px; border-radius: 8px; }

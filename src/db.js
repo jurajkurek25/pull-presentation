@@ -58,6 +58,12 @@ export function openDb(file) {
   addColumn(db, 'forms', 'show_questions', 'INTEGER NOT NULL DEFAULT 0');
   addColumn(db, 'questions', 'scores', "TEXT NOT NULL DEFAULT '[]'");
   addColumn(db, 'forms', 'result_title', "TEXT NOT NULL DEFAULT ''");
+  // Quiz mode.
+  addColumn(db, 'forms', 'quiz_state', `TEXT NOT NULL DEFAULT '{"phase":"lobby"}'`);
+  addColumn(db, 'questions', 'correct', 'INTEGER');
+  addColumn(db, 'questions', 'time_limit', 'INTEGER');
+  addColumn(db, 'responses', 'name', 'TEXT');
+  addColumn(db, 'answers', 'points', 'INTEGER NOT NULL DEFAULT 0');
   return db;
 }
 
@@ -78,7 +84,7 @@ export function getForm(db, where, value) {
 
 export function getQuestions(db, formId) {
   return db
-    .prepare('SELECT id, type, text, options, scores FROM questions WHERE form_id = ? ORDER BY position')
+    .prepare('SELECT id, type, text, options, scores, correct, time_limit FROM questions WHERE form_id = ? ORDER BY position')
     .all(formId)
     .map((q) => ({ ...q, options: JSON.parse(q.options), scores: JSON.parse(q.scores) }));
 }

@@ -229,3 +229,86 @@ test('Wi-Fi QR kód sa posiela iba keď je nastavený hotspot', async () => {
     }
   }
 });
+
+test('kvíz: pripojenie, odpovede, body za rýchlosť, vyhodnotenie a poradie', async () => {
+  const { db, server, base, call } = await setup();
+  try {
+    await call('POST', '/api/auth/login', { email: 'admin@example.com', password: 'tajneheslo' });
+    const { body: created } = await call('POST', '/api/admin/forms', { title: 'Kvíz', slug: 'kviz' });
+    const put = (questions) => call('PUT', `/api/admin/forms/${created.id}`, { title: 'Kvíz', slug: 'kviz', mode: 'quiz', questions });
+    const q1 = { type: 'single', text: 'Hlavné mesto SR?', options: ['Košice', 'Žilina', 'Bratislava', 'Nitra'], correct: 2, timeLimit: 5 };
+    const q2 = { type: 'single', text: 'Je Zem guľatá?', options: ['Áno', 'Nie'], correct: 0, timeLimit: 5 };
+
+    assert.equal((await put([{ ...q1, correct: undefined }])).status, 400);
+    assert.equal((await put([{ ...q1, type: 'multi' }])).status, 400);
+    assert.equal((await put([{ ...q1, options: ['a', 'b', 'c', 'd', 'e'] }])).status, 400);
+    assert.equal((await put([q1, q2])).status, 200);
+    await call('PUT', `/api/admin/forms/${created.id}/status`, { status: 'open' });
+
+    let pres = (await call('GET', '/api/p/kviz')).body;
+    assert.equal(pres.questions[0].correct, undefined, 'správna odpoveď sa nesmie posielať verejne');
+    assert.equal(pres.stats.quiz.state.phase, 'lobby');
+    assert.match(await (await fetch(`${base}/kviz/vyplnit`)).text(), /quiz\.js/);
+
+    // Only a signed-in admin can move the game on.
+    assert.equal((await fetch(`${base}/api/admin/quiz/kviz/next`, { method: 'POST' })).status, 401);
+
+    const [A, B] = ['a', 'b'].map((x) => x.repeat(32));
+    const q = (path, body) => call('POST', `/api/q/kviz/${path}`, body);
+    const me = async (token) => (await call('GET', `/api/q/kviz/me?token=${token}`)).body;
+    assert.equal((await q('join', { token: A, name: '  Anna  ' })).body.name, 'Anna');
+    assert.equal((await q('join', { token: B, name: 'anna' })).status, 409);
+    assert.equal((await q('join', { token: B, name: 'Boris' })).status, 200);
+    assert.deepEqual((await call('GET', '/api/p/kviz')).body.stats.quiz.names, ['Anna', 'Boris']);
+    assert.equal((await q('answer', { token: A, index: 0, choice: 2 })).status, 409, 'pred začiatkom sa nedá odpovedať');
+
+    // Question 1: correct option and counts stay hidden until everybody answered.
+    await call('POST', '/api/admin/quiz/kviz/next');
+    assert.equal((await q('answer', { token: A, index: 0, choice: 2 })).status, 200);
+    assert.equal((await q('answer', { token: A, index: 0, choice: 1 })).status, 409, 'odpoveď sa nedá zmeniť');
+    pres = (await call('GET', '/api/p/kviz')).body.stats.quiz;
+    assert.equal(pres.state.phase, 'question');
+    assert.equal(pres.answered, 1);
+    assert.equal(pres.correct, undefined);
+    assert.equal(pres.counts, undefined);
+    assert.equal((await me(A)).correct, undefined);
+
+    assert.equal((await q('answer', { token: B, index: 0, choice: 1 })).status, 200);
+    pres = (await call('GET', '/api/p/kviz')).body.stats.quiz;
+    assert.equal(pres.state.phase, 'reveal', 'všetci odpovedali → hneď vyhodnotenie');
+    assert.deepEqual(pres.counts, [0, 1, 1, 0]);
+    assert.equal(pres.correct, 2);
+    const anna = await me(A);
+    assert.equal(anna.correct, true);
+    assert.ok(anna.points >= 900 && anna.points <= 1000, `rýchla správna odpoveď ≈ 1000 bodov, je ${anna.points}`);
+    assert.deepEqual([anna.rank, (await me(B)).points, (await me(B)).rank], [1, 0, 2]);
+
+    await call('POST', '/api/admin/quiz/kviz/next');
+    pres = (await call('GET', '/api/p/kviz')).body.stats.quiz;
+    assert.equal(pres.state.phase, 'leaderboard');
+    assert.deepEqual(pres.leaderboard.map((p) => p.name), ['Anna', 'Boris']);
+
+    // Question 2: nobody answers, time runs out → revealed automatically.
+    await call('POST', '/api/admin/quiz/kviz/next');
+    const st = JSON.parse(db.prepare('SELECT quiz_state FROM forms WHERE id = ?').get(created.id).quiz_state);
+    assert.equal(st.index, 1);
+    db.prepare('UPDATE forms SET quiz_state = ? WHERE id = ?').run(JSON.stringify({ ...st, deadline: Date.now() - 5000 }), created.id);
+    assert.equal((await call('GET', '/api/p/kviz')).body.stats.quiz.state.phase, 'reveal');
+    assert.equal((await q('answer', { token: B, index: 1, choice: 0 })).status, 409, 'po čase sa nedá odpovedať');
+
+    // Last question → final podium.
+    await call('POST', '/api/admin/quiz/kviz/next');
+    pres = (await call('GET', '/api/p/kviz')).body.stats.quiz;
+    assert.equal(pres.state.phase, 'final');
+    assert.equal(pres.leaderboard[0].name, 'Anna');
+
+    // Survey endpoints are not used in a quiz; clearing responses restarts the game.
+    assert.equal((await call('PUT', '/api/f/kviz/answers', { token: A, questionId: 1, value: 0 })).status, 409);
+    await call('DELETE', `/api/admin/forms/${created.id}/responses`);
+    pres = (await call('GET', '/api/p/kviz')).body.stats.quiz;
+    assert.deepEqual([pres.state.phase, pres.players], ['lobby', 0]);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});

@@ -10,8 +10,9 @@
   <header class="bar">
     <h1 id="title">Načítavam…</h1>
     <div class="bar-right">
-      <span class="count"><b id="submitted">0</b> odovzdaných</span>
-      <span class="count"><b id="inProgress">0</b> vypĺňa</span>
+      <span class="count survey-count"><b id="submitted">0</b> odovzdaných</span>
+      <span class="count survey-count"><b id="inProgress">0</b> vypĺňa</span>
+      <span class="count" id="playersCount" hidden><b>0</b> hráčov</span>
       <span id="status" class="pill"></span>
     </div>
   </header>
@@ -46,7 +47,7 @@
         <div class="intro-text">
           <p class="eyebrow" data-fill-title>Naskenuj QR kód a odpovedaj</p>
           <p class="url" data-url></p>
-          <p class="hint">Výsledky sa tu zobrazujú naživo.</p>
+          <p class="hint" data-hint>Výsledky sa tu zobrazujú naživo.</p>
         </div>
       </div>
     </section>
@@ -77,6 +78,7 @@
   </template>
 
   <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/quiz-shapes.js"></script>
   <script src="/static/present.js"></script>
 </body>
 </html>

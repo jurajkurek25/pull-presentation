@@ -71,6 +71,23 @@ prvky → Označenie**).
 Po aktualizácii rozšírenia (`git pull`) klikni v `chrome://extensions` pri rozšírení na **↻** a obnov
 kartu s Canvou.
 
+## Režim „Kvíz“ (ako Kahoot)
+
+Hráči odpovedajú na čas, za správnu a rýchlu odpoveď dostanú body a po každej otázke sa ukáže poradie.
+
+1. V editore prepni **Režim** na **Kvíz**. Každá otázka je typu „Jedna možnosť“ s 2–4 možnosťami;
+   vyber **Správnu odpoveď** a **Čas na odpoveď** (predvolene 20 s). Stav prepni na **Otvorený**.
+2. Hráči naskenujú QR kód, zadajú prezývku a na plátne sa objavia ich mená (čakáreň).
+3. Šípkou prezentéra posúvaš hru: **otázka** (na mobiloch farebné tlačidlá so symbolmi, na plátne odpočet)
+   → **vyhodnotenie** (farebné stĺpce, správna odpoveď ✓; nastane samo po uplynutí času alebo keď odpovedia
+   všetci, šípkou ho môžeš vyvolať aj skôr) → **poradie** (top 5) → ďalšia otázka … → **víťazi** (stupne).
+   Na mobile hráč po každej otázke vidí „Správne! +850“ / „Nesprávne“, svoje body a umiestnenie.
+4. Šípka späť v čakárni a šípka ďalej na obrazovke víťazov zatvoria kartu (návrat do prezentácie).
+
+Body: správna odpoveď 1000 bodov, ak prišla okamžite, a 500 na konci limitu; nesprávna 0. Odpoveď sa nedá
+zmeniť. **Kvíz posúvať môže iba prihlásený admin** – v prehliadači s prezentáciou musíš byť prihlásený
+v `/admin`. Hru začneš odznova tlačidlom **Vymazať odpovede**.
+
 ## Ako sa počítajú odpovede
 
 - Každý klik respondenta sa uloží hneď a do ~0,25 s sa prejaví na plátne.
