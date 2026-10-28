@@ -138,3 +138,6 @@ body {
 .place-1 .block { height: 34vh; background: #ffd23f; }
 .place-2 .block { height: 24vh; }
 .place-3 .block { height: 16vh; }
+
+/* consistency test (colors-present) */
+.histogram { position: relative; flex: 1; min-height: 0; padding-bottom: 3vh; }

@@ -51,6 +51,13 @@ export function openDb(file) {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (response_id, question_id)
     );
+    CREATE TABLE IF NOT EXISTS color_picks (
+      response_id INTEGER NOT NULL REFERENCES responses(id) ON DELETE CASCADE,
+      round INTEGER NOT NULL,
+      letter TEXT NOT NULL,
+      color INTEGER NOT NULL,
+      PRIMARY KEY (response_id, round, letter)
+    );
   `);
   // Columns added after the first release (scored "test" mode).
   addColumn(db, 'forms', 'mode', "TEXT NOT NULL DEFAULT 'survey'");
@@ -64,6 +71,7 @@ export function openDb(file) {
   addColumn(db, 'questions', 'time_limit', 'INTEGER');
   addColumn(db, 'responses', 'name', 'TEXT');
   addColumn(db, 'answers', 'points', 'INTEGER NOT NULL DEFAULT 0');
+  addColumn(db, 'forms', 'phase', "TEXT NOT NULL DEFAULT 'round1'"); // consistency test
   return db;
 }
 

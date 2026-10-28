@@ -3,6 +3,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 const STATUS_LABELS = { draft: 'Koncept', open: 'Otvorený', closed: 'Uzavretý' };
 const TYPE_LABELS = { single: 'Jedna možnosť', multi: 'Viac možností', scale: 'Škála 1–5', text: 'Voľný text' };
 const SCALE_OPTIONS = ['1', '2', '3', '4', '5'];
+const PHASE_LABELS = { round1: 'Kolo 1', round2: 'Kolo 2' };
+const MODE_BADGES = { scored: 'Test', quiz: 'Kvíz', consistency: 'Konzistencia' };
 
 // Options as the server will store them (blank lines dropped, scale fixed).
 function effectiveOptions(q) {
@@ -85,7 +87,7 @@ async function formsView() {
           ${forms
             .map(
               (f) => `<tr>
-                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>${f.mode === 'scored' ? ' <span class="badge">Test</span>' : f.mode === 'quiz' ? ' <span class="badge">Kvíz</span>' : ''}
+                <td><a href="/admin/forms/${f.id}" data-link><b>${esc(f.title)}</b></a>${MODE_BADGES[f.mode] ? ` <span class="badge">${MODE_BADGES[f.mode]}</span>` : ''}
                   <div class="muted small">${esc(f.created_by_name ?? '')}</div></td>
                 <td><a href="/${esc(f.slug)}" target="_blank">/${esc(f.slug)}</a></td>
                 <td><span class="badge ${f.status}">${STATUS_LABELS[f.status]}</span></td>
@@ -173,12 +175,30 @@ async function formView(id) {
           <button data-mode="survey" aria-pressed="${mode === 'survey'}">Prieskum</button>
           <button data-mode="scored" aria-pressed="${mode === 'scored'}">Vyhodnocovací test</button>
           <button data-mode="quiz" aria-pressed="${mode === 'quiz'}">Kvíz</button>
+          <button data-mode="consistency" aria-pressed="${mode === 'consistency'}">Test konzistencie</button>
         </div>
       </div>
       <p class="muted small" style="margin:8px 0 0">Prieskum: v prezentácii je graf pre každú otázku.
         Test: odpovede dávajú body výsledkom, každý respondent dostane výsledok s najviac bodmi a v prezentácii je jeden koláč výsledkov.
         Kvíz: hráči odpovedajú na čas, za správnu a rýchlu odpoveď dostanú body, po každej otázke je poradie.
-        Otázky posúvaš šípkou prezentéra – v prehliadači s prezentáciou musíš byť prihlásený v administrácii.</p>
+        Otázky posúvaš šípkou prezentéra – v prehliadači s prezentáciou musíš byť prihlásený v administrácii.
+        Test konzistencie: dve kolá priraďovania farieb k písmenám, v prezentácii histogram zhôd (otázky sa nepoužívajú).</p>
+      <div id="consistencySettings" style="margin-top:14px" ${form.mode === 'consistency' ? '' : 'hidden'}>
+        <p style="margin:0 0 6px"><b>Odkaz na slajd s kolom 1:</b> <code class="url">${esc(presentUrl)}</code>
+          <button data-copy="${esc(presentUrl)}">Kopírovať</button></p>
+        <p style="margin:0 0 12px"><b>Odkaz na slajd s kolom 2:</b> <code class="url">${esc(presentUrl)}/kolo2</code>
+          <button data-copy="${esc(presentUrl)}/kolo2">Kopírovať</button></p>
+        <div class="row">
+          <div><b>Kolo:</b></div>
+          <div class="seg" id="phase">
+            ${Object.entries(PHASE_LABELS)
+              .map(([k, v]) => `<button data-phase="${k}" aria-pressed="${form.phase === k}">${v}</button>`)
+              .join('')}
+          </div>
+        </div>
+        <p class="muted small" style="margin:8px 0 0">Kolo 2 sa spustí samo, keď sa otvorí stránka zo slajdu s kolom 2
+          (v prehliadači musíš byť prihlásený sem do administrácie). Tu ho môžeš prepnúť aj ručne. Vymazanie odpovedí vráti test na kolo 1.</p>
+      </div>
       <div id="scoredSettings" style="margin-top:14px" ${mode === 'scored' ? '' : 'hidden'}>
         <div class="field"><label for="categories">Možné výsledky (každý na nový riadok, 2–8)</label>
           <textarea id="categories" rows="3" placeholder="Introvert&#10;Extrovert">${esc(categories.join('\n'))}</textarea></div>
@@ -191,11 +211,13 @@ async function formView(id) {
           Pri rovnakom počte bodov sa respondent zaráta do „Nerozhodne“.</p>
       </div>
     </div>
+    <div id="questionsSection" ${mode === 'consistency' ? 'hidden' : ''}>
     <h2>Otázky</h2>
     ${hasResponses ? '<p class="card muted">Dotazník už má odpovede, preto otázky nemožno meniť. Ak ich chceš upraviť, najprv vymaž odpovede.</p>' : ''}
     <div id="questions"></div>
+    </div>
     <div class="row" style="margin-bottom:24px">
-      <button id="add" ${hasResponses ? 'disabled' : ''}>+ Pridať otázku</button>
+      <button id="add" ${hasResponses || mode === 'consistency' ? 'disabled' : ''}>+ Pridať otázku</button>
       <span class="spacer"></span>
       <span id="saved" class="muted small"></span>
       <button id="save" class="primary">Uložiť</button>
@@ -310,6 +332,8 @@ async function formView(id) {
     mode = e.target.dataset.mode;
     view.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     view.querySelector('#scoredSettings').hidden = mode !== 'scored';
+    view.querySelector('#questionsSection').hidden = mode === 'consistency';
+    view.querySelector('#add').disabled = hasResponses || mode === 'consistency';
     refreshScores();
   });
   view.querySelector('#categories').addEventListener('input', (e) => {
@@ -343,7 +367,7 @@ async function formView(id) {
           return { type: q.type, text: q.text, options, scores, ...quiz };
         }),
       });
-      if (slug !== form.slug) return formView(id);
+      if (slug !== form.slug || mode !== form.mode) return formView(id);
       view.querySelector('#saved').textContent = 'Uložené ✓';
       setTimeout(() => (view.querySelector('#saved').textContent = ''), 2500);
     } catch (e) {
@@ -363,6 +387,12 @@ async function formView(id) {
     if (!status) return;
     await api('PUT', `/api/admin/forms/${id}/status`, { status });
     view.querySelectorAll('[data-status]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.status === status));
+  });
+  view.querySelector('#phase').addEventListener('click', async (e) => {
+    const phase = e.target.dataset.phase;
+    if (!phase) return;
+    await api('PUT', `/api/p/${encodeURIComponent(form.slug)}/phase`, { phase });
+    view.querySelectorAll('[data-phase]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.phase === phase));
   });
   view.querySelector('#reset').addEventListener('click', async () => {
     if (!confirm('Naozaj vymazať všetky odpovede tohto dotazníka?')) return;

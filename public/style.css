@@ -112,3 +112,13 @@ code.url { background: #f3f4f6; padding: 3px 8px; border-radius: 6px; font-size:
 .quiz-score { font-size: 1.1rem; font-weight: 700; }
 .quiz-shape { width: 88px; height: 88px; border-radius: 12px; display: grid; place-items: center; }
 .quiz-error { background: rgba(0,0,0,.35); padding: 8px 12px; border-radius: 8px; }
+
+/* consistency test (colors-fill) */
+.letter { font-size: 6rem; font-weight: 800; line-height: 1; text-align: center; margin: 12px 0 20px; }
+.colors { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.color { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 10px; text-align: left; }
+.color .swatch { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.color[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.back { margin-top: 14px; }
+.compare td { padding: 6px 8px; }
+.compare .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 6px; vertical-align: -2px; }

@@ -118,6 +118,33 @@ vypĺňania (svetlá = rozpracovaní, plná = odovzdaní).
 Body, výsledky aj režim môžeš meniť aj keď už sú odpovede – všetko sa prepočíta. Body sa
 respondentom neposielajú, takže v prehliadači nevidia, ktorá odpoveď vedie ku ktorému výsledku.
 
+## Režim „Test konzistencie“
+
+Cvičenie s farbami písmen v dvoch kolách (A, B, D, E, H, M, R, S, T; 8 farieb). Má vlastné stránky,
+QR kód pre mobil je rovnaký ako pri dotazníku (`/<slovo>/vyplnit`). Do prezentácie idú dva odkazy:
+`/<slovo>` (kolo 1) a `/<slovo>/kolo2` (kolo 2).
+
+1. V `/admin` vytvor dotazník, prepni **Režim** na **Test konzistencie**, ulož a stav prepni na **Otvorený**.
+2. Na slajd za sekciou 2 daj odkaz `forms.jurajkurek.com/<slovo>`, na slajd za sekciou 5
+   `forms.jurajkurek.com/<slovo>/kolo2` (v Canve ako text, v PowerPointe ako hypertextový odkaz).
+3. **Kolo 1:** stránka ukáže QR kód a počet hotových. Na mobile sa písmená zobrazujú po jednom, ťuknutím
+   na farbu sa uloží a ide sa ďalej. Po 9. písmene sa kolo zavrie a farby sa už neukážu (ani na mobile).
+   Mobil potom ukáže „Sledujte prezentáciu“. **Ďalej** na prezentéri zavrie stránku.
+4. **Kolo 2:** keď prezentácia príde na slajd s odkazom `/kolo2` a otvorí stránku, kolo 2 sa spustí. Mobily,
+   ktoré majú kolo 1 hotové, sa prepnú samé (alebo znova naskenujú QR v tom istom prehliadači), písmená sú
+   v náhodnom poradí. Kolo 1 sa tým zavrie.
+5. **Ďalej** → histogram: koľko ľudí má 0 až 9 zhôd, s čiarkovanou hranicou „aspoň 7 z 9“ (pod grafom je počet ľudí nad ňou; zmena v `THRESHOLD` v `public/colors-present.js`). Každý na mobile vidí svoje skóre a porovnanie oboch kôl.
+
+Stránka `/kolo2` spustí kolo 2 iba vtedy, keď je v tom istom prehliadači niekto **prihlásený do `/admin`**
+(inak sa ukáže upozornenie), aby ho nemohol spustiť nikto zo študentov. Kolo sa dá prepnúť aj ručne
+v editore (**Kolo 1 / Kolo 2**), tam sú aj oba odkazy na skopírovanie.
+**Vymazať odpovede** vráti test na kolo 1 – tak ho pred hodinou otestuješ a vynuluješ.
+
+Kto kolo 1 nedokončil, môže ho dokončiť až do začiatku kola 2; v kole 2 sa už nezapojí.
+
+Rozšírenie pre Canvu rozpoznáva adresu `/<slovo>/kolo2` od verzie 1.5 – po `git pull` ho v
+`chrome://extensions` obnov (**↻**).
+
 ## Spustenie lokálne
 
 ```bash

@@ -312,3 +312,68 @@ test('kvíz: pripojenie, odpovede, body za rýchlosť, vyhodnotenie a poradie', 
     server.close();
   }
 });
+
+test('test konzistencie: dve kolá, kolo 1 je skryté, plátno ukáže histogram zhôd', async () => {
+  const { server, base, call } = await setup();
+  try {
+    await call('POST', '/api/auth/login', { email: 'admin@example.com', password: 'tajneheslo' });
+    const { body: created } = await call('POST', '/api/admin/forms', { title: 'Farby písmen', slug: 'farby' });
+    assert.equal((await call('PUT', `/api/admin/forms/${created.id}`, { title: 'Farby písmen', slug: 'farby', mode: 'consistency', questions: [] })).status, 200);
+    await call('PUT', `/api/admin/forms/${created.id}/status`, { status: 'open' });
+    assert.match(await (await fetch(`${base}/farby`)).text(), /colors-present\.js/);
+    assert.match(await (await fetch(`${base}/farby/vyplnit`)).text(), /colors-fill\.js/);
+    assert.match(await (await fetch(`${base}/farby/kolo2`)).text(), /colors-present\.js/);
+
+    const { letters, colors } = (await call('GET', '/api/k/farby')).body;
+    assert.equal(letters.length, 9);
+    assert.equal(colors.length, 8);
+    const pick = (token, round, letter, color) => call('PUT', '/api/k/farby/pick', { token, round, letter, color });
+    const fillRound = async (token, round, colorOf) => {
+      let res;
+      for (const [i, l] of letters.entries()) res = await pick(token, round, l, colorOf(i));
+      return res;
+    };
+    const [A, B, C] = ['a', 'b', 'c'].map((x) => x.repeat(32));
+
+    assert.equal((await pick(A, 1, 'X', 0)).status, 400);
+    assert.equal((await pick(A, 1, 'A', 8)).status, 400);
+    assert.equal((await pick(A, 2, 'A', 0)).status, 409, 'kolo 2 ešte nebeží');
+
+    // Round 1: A and B finish, C only starts.
+    const done1 = await fillRound(A, 1, (i) => i % 8);
+    assert.deepEqual(done1.body.state.done, [true, false]);
+    assert.deepEqual(done1.body.state.picks[1], {}, 'farby z kola 1 sa nesmú vrátiť');
+    assert.equal((await pick(A, 1, 'A', 3)).status, 409, 'hotové kolo sa nedá meniť');
+    await fillRound(B, 1, () => 0);
+    await pick(C, 1, 'A', 0);
+    let stats = (await call('GET', '/api/p/farby')).body.stats;
+    assert.deepEqual(stats.rounds, [{ done: 2, inProgress: 1 }, { done: 0, inProgress: 0 }]);
+
+    // Changing the round requires a logged-in presenter.
+    assert.equal((await fetch(`${base}/api/p/farby/phase`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"phase":"round2"}' })).status, 401);
+    assert.equal((await call('PUT', '/api/p/farby/phase', { phase: 'break' })).status, 400);
+    assert.equal((await pick(C, 1, 'B', 0)).status, 200, 'kým nezačne kolo 2, kolo 1 sa dá dokončiť');
+    await call('PUT', '/api/p/farby/phase', { phase: 'round2' });
+    assert.equal((await pick(C, 1, 'D', 0)).status, 409, 'v kole 2 je kolo 1 zavreté');
+    assert.equal((await pick(C, 2, 'A', 0)).status, 409, 'bez dokončeného kola 1 sa kolo 2 nedá');
+
+    // Round 2: A keeps the colour of the first 4 letters and shifts the rest, B repeats all 9.
+    const doneA = await fillRound(A, 2, (i) => (i < 4 ? i : (i + 1) % 8));
+    assert.equal(doneA.body.state.matches, 4);
+    assert.deepEqual(Object.keys(doneA.body.state.picks[1]), letters, 'po kole 2 sa ukážu obe kolá');
+    await fillRound(B, 2, () => 0);
+    stats = (await call('GET', '/api/p/farby')).body.stats;
+    assert.deepEqual(stats.histogram, [0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+    assert.deepEqual(stats.counts, { submitted: 2, inProgress: 1 });
+    assert.equal((await call('GET', `/api/k/farby?token=${B}`)).body.state.matches, 9);
+
+    // Clearing responses starts the test over from round 1.
+    await call('DELETE', `/api/admin/forms/${created.id}/responses`);
+    const pres = (await call('GET', '/api/p/farby')).body;
+    assert.equal(pres.form.phase, 'round1');
+    assert.deepEqual(pres.stats.histogram, Array(10).fill(0));
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});

@@ -39,8 +39,9 @@ function isOnScreen(rect, el) {
 }
 
 // Canva keeps link targets out of the page, so the address is also recognised when it is
-// written as text on the slide (e.g. a text box "forms.jurajkurek.com/typ").
-const TEXT_URL_RE = new RegExp(`(${FORMS_HOSTS.map((h) => h.replaceAll('.', '\\.')).join('|')})/[A-Za-z0-9-]+`);
+// written as text on the slide (e.g. a text box "forms.jurajkurek.com/typ"; round 2 of the
+// consistency test is "forms.jurajkurek.com/typ/kolo2").
+const TEXT_URL_RE = new RegExp(`(${FORMS_HOSTS.map((h) => h.replaceAll('.', '\\.')).join('|')})/[A-Za-z0-9-]+(?:/kolo2)?`);
 
 function visibleFormsLink() {
   for (const a of document.querySelectorAll('a[href]')) {

@@ -18,6 +18,7 @@ import {
   quizStats,
   resetQuiz,
 } from './quiz.js';
+import { COLORS, LETTERS, PHASES, consistencyStats, getPicks, isRoundOpen, respondentState as colorState } from './consistency.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pub = path.join(root, 'public');
@@ -25,7 +26,7 @@ const pub = path.join(root, 'public');
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 const RESERVED_SLUGS = new Set(['admin', 'api', 'static', 'healthz', 'favicon.ico', 'robots.txt']);
 const STATUSES = ['draft', 'open', 'closed'];
-const MODES = ['survey', 'scored', 'quiz'];
+const MODES = ['survey', 'scored', 'quiz', 'consistency'];
 
 
 function validateSlug(slug) {
@@ -120,16 +121,18 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     categories: form.categories,
     showQuestions: form.show_questions,
     resultTitle: form.result_title,
+    phase: form.phase,
   });
   // Scores and quiz answers stay on the server so respondents can't see which answer leads where.
   const publicQuestions = (formId) => getQuestions(db, formId).map(({ scores, correct, ...q }) => q);
   const livePayload = (formId) => {
     const form = formById(formId);
     if (!form) return null;
-    const stats = computeStats(db, form);
+    const stats = form.mode === 'consistency' ? consistencyStats(db, formId) : computeStats(db, form);
     if (form.mode === 'quiz') stats.quiz = quizStats(db, form);
     return { form: publicForm(form), questions: publicQuestions(formId), stats };
   };
+  const counts = (form) => (form.mode === 'consistency' ? consistencyStats(db, form.id).counts : responseCounts(db, form.id));
   const hub = createHub(livePayload);
 
   // Reveal the question when its time is up, even if nobody calls the API at that moment.
@@ -156,14 +159,23 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     if (!currentUser(db, req)) return res.redirect('/admin/login');
     res.sendFile(path.join(pub, 'admin.html'));
   });
+  // The consistency test has its own pages; the addresses (and QR codes) stay the same.
   app.get('/:slug', (req, res) => {
-    if (!formBySlug(req.params.slug)) return res.status(404).sendFile(path.join(pub, '404.html'));
-    res.sendFile(path.join(pub, 'present.html'));
+    const form = formBySlug(req.params.slug);
+    if (!form) return res.status(404).sendFile(path.join(pub, '404.html'));
+    res.sendFile(path.join(pub, form.mode === 'consistency' ? 'colors-present.html' : 'present.html'));
   });
   app.get('/:slug/vyplnit', (req, res) => {
     const form = formBySlug(req.params.slug);
     if (!form) return res.status(404).sendFile(path.join(pub, '404.html'));
-    res.sendFile(path.join(pub, form.mode === 'quiz' ? 'quiz.html' : 'fill.html'));
+    const page = { quiz: 'quiz.html', consistency: 'colors-fill.html' }[form.mode] ?? 'fill.html';
+    res.sendFile(path.join(pub, page));
+  });
+  // Consistency test, round 2: the slide that links here starts round 2 when it opens the page.
+  app.get('/:slug/kolo2', (req, res) => {
+    const form = formBySlug(req.params.slug);
+    if (form?.mode !== 'consistency') return res.status(404).sendFile(path.join(pub, '404.html'));
+    res.sendFile(path.join(pub, 'colors-present.html'));
   });
 
   // ---------- presentation (public, read-only) ----------
@@ -179,6 +191,15 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
   app.get('/api/p/:slug/stream', (req, res) => {
     const form = mustForm(formBySlug(req.params.slug));
     hub.subscribe(form.id, req, res);
+  });
+  // Moves the consistency test between rounds; the round 2 page does it when it opens,
+  // so it needs the presenter to be logged in in that browser.
+  app.put('/api/p/:slug/phase', requireUser(db), (req, res) => {
+    const form = mustForm(formBySlug(req.params.slug));
+    if (!PHASES.includes(req.body.phase)) fail(400, 'Neplatná fáza.');
+    db.prepare('UPDATE forms SET phase = ? WHERE id = ?').run(req.body.phase, form.id);
+    hub.notify(form.id);
+    res.json({ ok: true });
   });
 
   // ---------- respondents ----------
@@ -267,6 +288,42 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     res.json({ ok: true });
   });
 
+  // ---------- consistency test (respondents) ----------
+  const colorForm = (slug) => {
+    const form = mustForm(formBySlug(slug));
+    if (form.mode !== 'consistency') fail(404, 'Toto nie je test konzistencie.');
+    return form;
+  };
+  app.get('/api/k/:slug', (req, res) => {
+    const form = colorForm(req.params.slug);
+    const response = req.query.token
+      ? db.prepare('SELECT id FROM responses WHERE form_id = ? AND token = ?').get(form.id, validateToken(req.query.token))
+      : null;
+    const state = colorState(response ? getPicks(db, response.id) : { 1: {}, 2: {} });
+    res.json({ form: publicForm(form), letters: LETTERS, colors: COLORS, state });
+  });
+  app.put('/api/k/:slug/pick', (req, res) => {
+    const form = colorForm(req.params.slug);
+    const token = validateToken(req.body.token);
+    const { round, letter, color } = req.body;
+    if (![1, 2].includes(round) || !LETTERS.includes(letter) || !Number.isInteger(color) || color < 0 || color >= COLORS.length) {
+      fail(400, 'Neplatná odpoveď.');
+    }
+    const picks = db.transaction(() => {
+      if (form.status !== 'open') fail(409, 'Test momentálne neprijíma odpovede.');
+      db.prepare('INSERT OR IGNORE INTO responses (form_id, token) VALUES (?, ?)').run(form.id, token);
+      const { id } = db.prepare('SELECT id FROM responses WHERE form_id = ? AND token = ?').get(form.id, token);
+      if (!isRoundOpen(form, getPicks(db, id), round)) fail(409, 'Toto kolo je pre teba uzavreté.');
+      db.prepare(
+        `INSERT INTO color_picks (response_id, round, letter, color) VALUES (?, ?, ?, ?)
+         ON CONFLICT (response_id, round, letter) DO UPDATE SET color = excluded.color`
+      ).run(id, round, letter, color);
+      return getPicks(db, id);
+    })();
+    hub.notify(form.id);
+    res.json({ state: colorState(picks) });
+  });
+
   // ---------- auth ----------
   app.post('/api/auth/login', (req, res) => {
     const user = login(db, req, res, req.body.email ?? '', req.body.password ?? '');
@@ -290,7 +347,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
          FROM forms f LEFT JOIN users u ON u.id = f.created_by ORDER BY f.id DESC`
       )
       .all()
-      .map((f) => ({ ...f, counts: responseCounts(db, f.id) }));
+      .map((f) => ({ ...f, counts: counts(f) }));
     res.json({ forms });
   });
   admin.post('/forms', (req, res) => {
@@ -302,7 +359,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
   });
   admin.get('/forms/:id', (req, res) => {
     const form = mustForm(formById(req.params.id));
-    res.json({ form, questions: getQuestions(db, form.id), counts: responseCounts(db, form.id) });
+    res.json({ form, questions: getQuestions(db, form.id), counts: counts(form) });
   });
   admin.put('/forms/:id', (req, res) => {
     const form = mustForm(formById(req.params.id));
@@ -365,6 +422,7 @@ export function createApp({ db, publicUrl, wifiSsid } = {}) {
     const form = mustForm(formById(req.params.id));
     db.prepare('DELETE FROM responses WHERE form_id = ?').run(form.id);
     resetQuiz(db, form);
+    db.prepare("UPDATE forms SET phase = 'round1' WHERE id = ?").run(form.id);
     hub.notify(form.id);
     res.json({ ok: true });
   });
